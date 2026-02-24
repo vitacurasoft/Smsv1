@@ -6,17 +6,11 @@
   <title>SMS automatique</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    :root { --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#f9fafb; --stroke:#e5e7eb; --btn:#111827; --btnText:#ffffff; --danger:#b91c1c; }
+:root { --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#f9fafb; --stroke:#e5e7eb; --btn:#111827; --btnText:#ffffff; --danger:#b91c1c; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text); }
     .wrap{ max-width: 900px; margin: 0 auto; padding: 18px 14px 40px; }
     .top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-    
-    .compactTop{ gap:10px; }
-    .compactTop .titleWrap{ padding-top:2px; }
-    .compactTop .topControls{ background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:10px; }
-    .compactTop h1{ font-size:28px; }
-    .kpi{ font-weight:600; }
-h1{ margin:0; font-size:28px; line-height:1.1; }
+    h1{margin:0;font-size:28px;letter-spacing:-0.3px;}
     .muted{ color:var(--muted); font-size:14px; }
     .panel{ background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:14px; }
     .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -40,40 +34,44 @@ h1{ margin:0; font-size:28px; line-height:1.1; }
     .footerBar{ display:flex; gap:10px; justify-content:flex-end; }
     .kpi{ font-size:14px; color:var(--muted); margin-top:8px; }
     .small{ font-size:13px; }
-  </style>
+/* --- Compact header --- */
+.compactTop{margin-bottom:10px}
+.compactTop .controlsLine{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:6px}
+.senderInline{display:flex;gap:8px;align-items:center;flex:1;min-width:220px}
+.senderInline select, .senderInline input{height:40px}
+.authInline{display:flex;gap:8px;align-items:center}
+.badge{display:inline-flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:999px;background:#f2f3f5;border:1px solid #e5e7eb;font-size:13px;color:#111827;white-space:nowrap}
+.sep{border:none;border-top:1px solid #e5e7eb;margin:10px 0 14px}
+@media (max-width:560px){
+  h1{font-size:26px}
+  .senderInline{min-width:0;flex-basis:100%}
+  .authInline{flex-basis:100%;justify-content:space-between}
+}
+
+</style>
 </head>
 <body>
   <div class="wrap">
-    <div class="top compactTop">
-  <div class="titleWrap">
+    
+<div class="top compactTop">
+  <div class="titleLine">
     <h1>SMS automatique</h1>
   </div>
-
-  <div class="topControls">
-    <div class="row" style="gap:10px; flex-wrap:wrap;">
-      <div style="flex:1; min-width:220px;">
-        <div class="label">Numéro d'envoi (info)</div>
-        <select class="select" id="senderPreset">
-          <option value="0669537791" selected>06 69 53 77 91 (par défaut)</option>
-          <option value="other">Autre…</option>
-        </select>
-      </div>
-      <div style="flex:1; min-width:220px;">
-        <div class="label">Votre numéro</div>
-        <input class="input" id="senderCustom" type="tel" inputmode="numeric" placeholder="06XXXXXXXX" value="0669537791" />
-      </div>
+  <div class="controlsLine">
+    <div class="senderInline">
+      <select id="senderSelect">
+              <option value="06 69 53 77 91">06 69 53 77 91 (par défaut)</option>
+              <option value="__custom__">Autre…</option>
+            </select>
+      <input id="customSender" type="text" inputmode="tel" placeholder="06 XX XX XX XX" />
     </div>
-
-    <div class="row" style="justify-content:space-between; align-items:center; margin-top:10px;">
-      <div class="kpi" id="authStatus">Non connecté.</div>
-      <div class="row" style="gap:10px;">
-        <button class="btn" id="btnConnect">Se connecter</button>
-        <button class="btn secondary" id="btnDisconnect">Déconnecter</button>
-      </div>
+    <div class="authInline">
+      <button class="btn" id="btnConnect">Se connecter</button>
+      <div class="badge" id="authStatus">Non connecté.</div>
     </div>
   </div>
 </div>
-
+<hr class="sep" />
 <!-- VIEW 1: sélection des RDV -->
     <div id="viewPick" class="panel" style="margin-top:14px;">
       <div class="row" style="justify-content:space-between;">
@@ -134,6 +132,7 @@ h1{ margin:0; font-size:28px; line-height:1.1; }
   </div>
 
 <script>
+
 /* ==========================
    CONFIG
 ========================== */
@@ -239,7 +238,7 @@ function buildSmsText({prenom, dateObj, hhmm}){
   const monthName = frMonthName(dateObj);
 
   return (
-`Bonjour ${prenom ? (prenom + ',') : ''}
+`Bonjour ${prenom || ""}
 
 Je vous confirme notre rendez-vous ce ${dayName} ${dayNum} ${monthName} à ${hhmm}
 
@@ -375,8 +374,8 @@ let selectedIds = new Set();
 function formatWhen(e){
   const d = e.start;
   const date = `${frDayName(d)} ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
-  const hhmmStart = `${pad2(d.getHours())}h${pad2(d.getMinutes())}`;
-  const hhmmEnd = `${pad2(e.end.getHours())}h${pad2(e.end.getMinutes())}`;
+  const hhmmStart = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const hhmmEnd = `${pad2(e.end.getHours())}:${pad2(e.end.getMinutes())}`;
   return `${date} ${hhmmStart} → ${hhmmEnd}`;
 }
 
@@ -636,6 +635,7 @@ function skipCurrent(){
   customInput.addEventListener("input", persistSender);
 
 })();
+
 </script>
 </body>
 </html>
