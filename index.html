@@ -6,266 +6,233 @@
   <title>SMS automatique</title>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-:root { --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#f9fafb; --stroke:#e5e7eb; --btn:#111827; --btnText:#ffffff; --danger:#b91c1c; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text); }
-    .wrap{ max-width: 900px; margin: 0 auto; padding: 18px 14px 40px; }
-    .top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-    h1{margin:0;font-size:28px;letter-spacing:-0.3px;}
-    .muted{ color:var(--muted); font-size:14px; }
-    .panel{ background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:14px; }
-    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .row > *{ flex:0 0 auto; }
-    label{ font-size:13px; color:var(--muted); display:block; margin-bottom:6px; }
-    input[type="date"], select, input[type="text"]{ padding:12px 12px; border:1px solid var(--stroke); border-radius:12px; font-size:16px; background:#fff; min-width: 210px; }
-    .btn{ background:var(--btn); color:var(--btnText); border:0; padding:12px 14px; border-radius:12px; font-size:16px; cursor:pointer; }
-    .btn.secondary{ background:#fff; color:var(--text); border:1px solid var(--stroke); }
-    .btn:disabled{ opacity:.45; cursor:not-allowed; }
-    .list{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
-    .item{ background:#fff; border:1px solid var(--stroke); border-radius:16px; padding:12px; display:flex; gap:12px; align-items:center; justify-content:space-between; }
-    .itemLeft{ display:flex; gap:12px; align-items:center; min-width:0; }
-    .itemMain{ min-width:0; }
-    .line1{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .line2{ color:var(--muted); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .badgeSent{ font-size:12px; padding:5px 9px; border-radius:999px; border:1px solid var(--stroke); background:#f3f4f6; }
-    .err{ color:var(--danger); font-size:13px; margin-top:6px; }
-    .divider{ height:1px; background:var(--stroke); margin:14px 0; }
-    .hidden{ display:none !important; }
-    .footerActions{ position:sticky; bottom:0; background:linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,.86)); padding:12px 0 0; }
-    .footerBar{ display:flex; gap:10px; justify-content:flex-end; }
-    .kpi{ font-size:14px; color:var(--muted); margin-top:8px; }
-    .small{ font-size:13px; }
-/* --- Compact header --- */
-.compactTop{margin-bottom:10px}
-.compactTop .controlsLine{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:6px}
-.senderInline{display:flex;gap:8px;align-items:center;flex:1;min-width:220px}
-.senderInline select, .senderInline input{height:40px}
-.authInline{display:flex;gap:8px;align-items:center}
-.badge{display:inline-flex;align-items:center;justify-content:center;padding:8px 10px;border-radius:999px;background:#f2f3f5;border:1px solid #e5e7eb;font-size:13px;color:#111827;white-space:nowrap}
-.sep{border:none;border-top:1px solid #e5e7eb;margin:10px 0 14px}
-@media (max-width:560px){
-  h1{font-size:26px}
-  .senderInline{min-width:0;flex-basis:100%}
-  .authInline{flex-basis:100%;justify-content:space-between}
-}
+    :root { 
+      --bg: #f4f7f6; 
+      --surface: #ffffff;
+      --primary: #2563eb; 
+      --text: #1e293b; 
+      --muted: #64748b; 
+      --stroke: #e2e8f0; 
+      --success: #10b981;
+      --danger: #ef4444;
+      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    }
 
+    body { 
+      font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+      margin: 0; 
+      background: var(--bg); 
+      color: var(--text); 
+      line-height: 1.5;
+    }
 
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--stroke);
+      padding: 8px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
 
-  .compactTop .line{ display:flex; align-items:center; gap:10px; margin-top:10px; }
-  .inlineLabel{ font-size:12px; color:#6b7280; min-width:105px; }
-  #senderPhone{ flex:1; }
-  .lineAuth{ justify-content:flex-start; }
-</style>
+    .settings-group { display: flex; gap: 20px; align-items: center; }
+    .setting-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    
+    select, input[type="text"], input[type="date"] {
+      padding: 6px 10px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .wrap { max-width: 800px; margin: 20px auto; padding: 0 16px 80px; }
+
+    .section-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .panel { background: var(--surface); border-radius: 12px; padding: 20px; border: 1px solid var(--stroke); box-shadow: var(--shadow); }
+
+    .item { 
+      background: var(--surface); 
+      border: 1px solid var(--stroke); 
+      border-radius: 10px; 
+      padding: 12px 16px; 
+      display: flex; 
+      align-items: center; 
+      gap: 16px; 
+      margin-bottom: 8px;
+      transition: all 0.2s ease;
+    }
+    .item:hover { border-color: var(--primary); }
+    .item.disabled { opacity: 0.6; background: #f8fafc; }
+
+    .item-time { font-weight: 700; color: var(--primary); min-width: 60px; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name { font-weight: 600; font-size: 15px; }
+    .item-meta { font-size: 13px; color: var(--muted); }
+
+    .btn { 
+      background: var(--primary); 
+      color: white; 
+      border: none; 
+      padding: 8px 16px; 
+      border-radius: 8px; 
+      font-weight: 500; 
+      cursor: pointer; 
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn.secondary { background: white; color: var(--text); border: 1px solid var(--stroke); }
+    .btn:disabled { background: var(--stroke); cursor: not-allowed; color: var(--muted); }
+
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-sent { background: #dcfce7; color: #166534; }
+    .badge-error { background: #fee2e2; color: #991b1b; }
+
+    .footer-actions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255,255,255,0.9);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid var(--stroke);
+      padding: 12px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .hidden { display: none !important; }
+  </style>
 </head>
 <body>
+
+  <header>
+    <div class="settings-group">
+      <div class="setting-item">
+        <span>Expéditeur :</span>
+        <select id="senderSelect">
+          <option value="06 69 53 77 91">06 69 53 77 91</option>
+          <option value="__custom__">Autre…</option>
+        </select>
+        <input id="customSender" type="text" class="hidden" placeholder="06XXXXXXXX" style="width:100px;">
+      </div>
+      <div class="setting-item" id="authStatus">Non connecté</div>
+    </div>
+    <div class="settings-group">
+      <button class="btn secondary" id="btnConnect" style="padding: 4px 10px; font-size: 12px;">Connexion</button>
+      <button class="btn secondary" id="btnDisconnect" style="padding: 4px 10px; font-size: 12px;">Déconnexion</button>
+    </div>
+  </header>
+
   <div class="wrap">
     
-<div class="top compactTop">
-  <div class="titleLine">
-    <h1>SMS automatique</h1>
-  </div>
-
-  <div class="line">
-    <label class="inlineLabel" for="senderPhone">Numéro d’envoi</label>
-    <input id="senderPhone" type="text" inputmode="tel" placeholder="06 XX XX XX XX" />
-  </div>
-
-  <div class="line lineAuth">
-    <button class="btn" id="btnConnect">Se connecter</button>
-    <div class="badge" id="authStatus">Non connecté.</div>
-  </div>
-</div>
-<hr class="sep" />
-<!-- VIEW 1: sélection des RDV -->
-    <div id="viewPick" class="panel" style="margin-top:14px;">
-      <div class="row" style="justify-content:space-between;">
-        <div>
-          <label>Date des rendez-vous</label>
+    <div id="viewPick">
+      <div class="section-title">
+        Gestion des rendez-vous
+        <div style="display:flex; gap:8px;">
           <input id="datePick" type="date" />
-          <div class="muted small" style="margin-top:6px;">Par défaut : demain. Vous pouvez changer la date.</div>
-        </div>
-        <div style="text-align:right;">
-          <button class="btn" id="btnLoad">Charger les RDV</button>
-          <div class="kpi" id="loadInfo"></div>
+          <button class="btn" id="btnLoad">Charger</button>
         </div>
       </div>
 
-      <div class="list" id="rdvList"></div>
+      <div class="panel">
+        <div id="rdvList" class="list">
+          <div class="muted" style="text-align:center; padding: 20px;">Sélectionnez une date pour charger les rendez-vous.</div>
+        </div>
+      </div>
+      
+      <div class="footer-actions">
+        <button class="btn secondary" id="btnClearSent">Réinitialiser l'historique</button>
+        <button class="btn" id="btnToSend" disabled>Continuer (0)</button>
+      </div>
+    </div>
 
-      <div class="footerActions">
-        <div class="footerBar">
-          <button class="btn secondary" id="btnClearSent">Réinitialiser “SMS envoyés”</button>
-          <button class="btn" id="btnToSend" disabled>Continuer (0 sélection)</button>
+    <div id="viewSend" class="hidden">
+      <div class="section-title">
+        <button class="btn secondary" id="btnBack">← Retour</button>
+        Envoi des confirmations
+      </div>
+
+      <div class="panel">
+        <div id="sendList" class="list"></div>
+        
+        <div style="margin-top:20px; padding-top:20px; border-top: 1px solid var(--stroke); display:flex; justify-content:space-between; align-items:center;">
+          <div id="sendProgress" class="item-meta"></div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn secondary" id="btnSkip">Passer</button>
+            <button class="btn" id="btnOpenSms">Ouvrir SMS</button>
+            <button class="btn" id="btnMarkSent" style="background:var(--success)">Marquer envoyé</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- VIEW 2: envoi -->
-    <div id="viewSend" class="panel hidden" style="margin-top:14px;">
-      <div class="row" style="justify-content:space-between;">
-        <div>
-          <div class="line1">Envoi des SMS</div>
-          <div class="muted" id="sendSubtitle"></div>
-        </div>
-        <button class="btn secondary" id="btnBack">Retour</button>
-      </div>
-
-      <div class="divider"></div>
-
-      <div id="sendList" class="list"></div>
-
-      <div class="divider"></div>
-
-      <div class="row" style="justify-content:space-between;">
-        <div class="muted" id="sendProgress"></div>
-        <div class="row">
-          <button class="btn secondary" id="btnSkip">Passer</button>
-          <button class="btn" id="btnOpenSms">Ouvrir SMS</button>
-          <button class="btn secondary" id="btnMarkSent">Marquer comme envoyé</button>
-        </div>
-      </div>
-
-      <div class="muted small" style="margin-top:10px;">
-        Le bouton “Ouvrir SMS” ouvre l’application SMS avec le message pré-rempli. Sur mobile, l’envoi final se fait dans l’appli SMS.
-      </div>
-    </div>
-
-    <div class="muted" style="margin-top:12px;">
-      Astuce : pour que le téléphone soit reconnu, mettez dans la description Google Agenda une ligne du type <strong>Téléphone: 06XXXXXXXX</strong>.
-    </div>
   </div>
 
 <script>
-
 /* ==========================
-   CONFIG
+   CONFIG & LOGIQUE
 ========================== */
 const OAUTH_CLIENT_ID = "962693468865-fpumnvpt5517nfs21kobao8l2ejni1qk.apps.googleusercontent.com";
 const SCOPES = "https://www.googleapis.com/auth/calendar.readonly openid email profile";
 const CAL_API = "https://www.googleapis.com/calendar/v3";
 
-/* ==========================
-   UTIL
-========================== */
-function pad2(n){ return String(n).padStart(2,"0"); }
-function frDayName(date){
-  const jours = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
-  return jours[date.getDay()];
-}
-function frMonthName(date){
-  const mois = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
-  return mois[date.getMonth()];
-}
-function toLocalISO(date){
-  const y = date.getFullYear(), m = pad2(date.getMonth()+1), d = pad2(date.getDate());
-  return `${y}-${m}-${d}`;
-}
-function normPhone(s){
-  if(!s) return "";
-  // conserve + et chiffres
-  const cleaned = s.replace(/[^\d+]/g,"");
-  return cleaned;
-}
-function smsHref(phone, body){
-  // Android: sms:NUM?body=...  iOS: sms:NUM&body=...
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const sep = isIOS ? "&" : "?";
-  return `sms:${encodeURIComponent(phone)}${sep}body=${encodeURIComponent(body)}`;
-}
-function escapeHtml(str){
-  return (str||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-}
+let tokenClient = null;
+let accessToken = "";
+let eventsCache = [];
+let selectedIds = new Set();
+let sendQueue = [];
+let sendIndex = 0;
 
-/* ==========================
-   STORAGE: sent flags + sender
-========================== */
 const SENT_KEY = "smsv1_sent_map_v1";
 const SENDER_KEY = "smsv1_sender_v1";
-function getSentMap(){
-  try { return JSON.parse(localStorage.getItem(SENT_KEY) || "{}"); } catch(e){ return {}; }
-}
-function setSentMap(map){
-  localStorage.setItem(SENT_KEY, JSON.stringify(map||{}));
-}
-function isSent(eventId){
-  const map = getSentMap();
-  return !!map[eventId];
-}
-function markSent(eventId){
-  const map = getSentMap();
-  map[eventId] = { at: Date.now() };
-  setSentMap(map);
-}
-function clearSent(){
-  localStorage.removeItem(SENT_KEY);
-}
 
-/* ==========================
-   PARSE DESCRIPTION: "Clé: valeur"
-========================== */
+/* Fonctions utilitaires */
+function pad2(n){ return String(n).padStart(2,"0"); }
+function frDayName(date){ return ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"][date.getDay()]; }
+function frMonthName(date){ return ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"][date.getMonth()]; }
+function toLocalISO(date){ return `${date.getFullYear()}-${pad2(date.getMonth()+1)}-${pad2(date.getDate())}`; }
+function normPhone(s){ return s ? s.replace(/[^\d+]/g,"") : ""; }
+
+function getSentMap(){ try { return JSON.parse(localStorage.getItem(SENT_KEY) || "{}"); } catch(e){ return {}; } }
+function setSentMap(map){ localStorage.setItem(SENT_KEY, JSON.stringify(map||{})); }
+function isSent(eventId){ return !!getSentMap()[eventId]; }
+function markSent(eventId){ const map = getSentMap(); map[eventId] = { at: Date.now() }; setSentMap(map); }
+function clearSent(){ localStorage.removeItem(SENT_KEY); }
+
+/* Parsing Description */
 function parseKeyValueLines(text){
   const out = {};
   if(!text) return out;
-  const lines = text.split(/\r?\n/);
-  for(const line of lines){
+  text.split(/\r?\n/).forEach(line => {
     const m = line.match(/^\s*([^:]{2,40})\s*:\s*(.+?)\s*$/);
-    if(!m) continue;
-    const key = m[1].trim().toLowerCase();
-    const val = m[2].trim();
-    out[key] = val;
-  }
+    if(m) out[m[1].trim().toLowerCase()] = m[2].trim();
+  });
   return out;
 }
+
 function extractPhoneFromEvent(ev){
-  // 1) description key-values
   const kv = parseKeyValueLines(ev.description || "");
-  const candidates = [
-    kv["téléphone"], kv["telephone"], kv["tel"], kv["phone"], kv["mobile"]
-  ].filter(Boolean);
-
-  // 2) fallback: search any phone-like pattern in description
-  if(candidates.length === 0 && ev.description){
+  let phone = kv["téléphone"] || kv["telephone"] || kv["tel"] || kv["phone"] || kv["mobile"];
+  if(!phone && ev.description){
     const m = ev.description.match(/(\+?\d[\d\s().-]{7,}\d)/);
-    if(m) candidates.push(m[1]);
+    if(m) phone = m[1];
   }
-
-  const phone = normPhone(candidates[0] || "");
-  return phone;
+  return normPhone(phone || "");
 }
 
-/* ==========================
-   TEMPLATE SMS
-========================== */
+/* Template SMS */
 function buildSmsText({prenom, dateObj, hhmm}){
-  const dayName = frDayName(dateObj);
-  const dayNum = pad2(dateObj.getDate());
-  const monthName = frMonthName(dateObj);
-
-  return (
-`Bonjour ${prenom || ""},
-
-Je vous confirme notre rendez-vous ce ${dayName} ${dayNum} ${monthName} à ${hhmm}
-
-Le cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan.
-(Rez de chaussée, à droite).
-Un parking gratuit se trouve à 50 mètres, juste en face du parc des sports.
-
-Bien cordialement,
-Damien Leignel
-Psychopraticien, Hypnose, PNL, EMDR, TCC, Analyse Transactionnelle & Coaching`
-  ).trim();
+  return `Bonjour ${prenom || ""}\n\nJe vous confirme notre rendez-vous ce ${frDayName(dateObj)} ${pad2(dateObj.getDate())} ${frMonthName(dateObj)} à ${hhmm}\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`.trim();
 }
 
-/* ==========================
-   GOOGLE AUTH (GIS) + TOKEN
-========================== */
-let tokenClient = null;
-let accessToken = "";
-let eventsCache = []; // loaded events for picked day
-
-function setAuthStatus(msg){
-  document.getElementById("authStatus").textContent = msg;
-}
-
+/* Auth */
 function ensureTokenClient(){
   if(tokenClient) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
@@ -274,370 +241,181 @@ function ensureTokenClient(){
     callback: (resp) => {
       if(resp && resp.access_token){
         accessToken = resp.access_token;
-        setAuthStatus("Connecté.");
-      } else {
-        setAuthStatus("Connexion refusée.");
+        document.getElementById("authStatus").textContent = "Connecté";
+        document.getElementById("authStatus").style.color = "var(--success)";
       }
     }
   });
-}
-
-function connect(){
-  ensureTokenClient();
-  tokenClient.requestAccessToken({ prompt: "consent" });
-}
-
-function disconnect(){
-  accessToken = "";
-  setAuthStatus("Non connecté.");
-}
-
-/* ==========================
-   GOOGLE CALENDAR API CALLS
-========================== */
-async function fetchJson(url){
-  const res = await fetch(url, {
-    headers: { "Authorization": "Bearer " + accessToken }
-  });
-  const data = await res.json().catch(()=>({}));
-  if(!res.ok){
-    const msg = data?.error?.message || ("Erreur HTTP " + res.status);
-    throw new Error(msg);
-  }
-  return data;
-}
-
-function dayRange(dateStr){
-  // dateStr: YYYY-MM-DD
-  const start = new Date(dateStr + "T00:00:00");
-  const end = new Date(dateStr + "T23:59:59");
-  // to RFC3339 with timezone offset
-  return { timeMin: start.toISOString(), timeMax: end.toISOString() };
 }
 
 async function loadEventsForDate(dateStr){
-  if(!accessToken) throw new Error("Vous devez d’abord vous connecter.");
-  const { timeMin, timeMax } = dayRange(dateStr);
-
-  // primary calendar events
-  const url =
-    `${CAL_API}/calendars/primary/events?` +
-    new URLSearchParams({
-      timeMin,
-      timeMax,
-      singleEvents: "true",
-      orderBy: "startTime",
-      maxResults: "250"
-    }).toString();
-
-  const data = await fetchJson(url);
-  const items = Array.isArray(data.items) ? data.items : [];
-
-  // normalize
-  const out = items.map(ev => {
-    const startISO = ev.start?.dateTime || (ev.start?.date ? ev.start.date + "T00:00:00Z" : null);
-    const endISO = ev.end?.dateTime || (ev.end?.date ? ev.end.date + "T00:00:00Z" : null);
-    const start = startISO ? new Date(startISO) : null;
-    const end = endISO ? new Date(endISO) : null;
-
-    // ignore all-day events by default (often "Blocage")
-    const isAllDay = !!ev.start?.date && !ev.start?.dateTime;
-
-    // prenom: from "RDV Nom" or parse "Prénom:" in description
+  if(!accessToken) throw new Error("Veuillez vous connecter d'abord.");
+  const start = new Date(dateStr + "T00:00:00").toISOString();
+  const end = new Date(dateStr + "T23:59:59").toISOString();
+  
+  const url = `${CAL_API}/calendars/primary/events?timeMin=${start}&timeMax=${end}&singleEvents=true&orderBy=startTime`;
+  const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
+  const data = await res.json();
+  
+  return (data.items || []).filter(ev => ev.start.dateTime).map(ev => {
     const kv = parseKeyValueLines(ev.description || "");
-    const prenom = kv["prénom"] || kv["prenom"] || "";
-
-    const phone = extractPhoneFromEvent(ev);
-
     return {
       id: ev.id,
       summary: ev.summary || "(Sans titre)",
-      description: ev.description || "",
-      start,
-      end,
-      isAllDay,
-      prenom,
-      phone
+      start: new Date(ev.start.dateTime),
+      end: new Date(ev.end.dateTime),
+      prenom: kv["prénom"] || kv["prenom"] || "",
+      phone: extractPhoneFromEvent(ev)
     };
   });
-
-  // Filter: keep timed events only
-  return out.filter(e => e.start && e.end && !e.isAllDay);
 }
 
-/* ==========================
-   UI: VIEW 1 (pick)
-========================== */
-const rdvListEl = document.getElementById("rdvList");
-const loadInfoEl = document.getElementById("loadInfo");
-const btnToSend = document.getElementById("btnToSend");
-
-let selectedIds = new Set();
-
-function formatWhen(e){
-  const d = e.start;
-  const date = `${frDayName(d)} ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
-  const hhmmStart = `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-  const hhmmEnd = `${pad2(e.end.getHours())}:${pad2(e.end.getMinutes())}`;
-  return `${date} ${hhmmStart} → ${hhmmEnd}`;
-}
-
-function updateContinueBtn(){
-  const n = selectedIds.size;
-  btnToSend.disabled = (n === 0);
-  btnToSend.textContent = `Continuer (${n} sélection${n>1?"s":""})`;
-}
-
+/* UI Rendering */
 function renderEventsList(events){
-  selectedIds = new Set();
-  updateContinueBtn();
+  const list = document.getElementById("rdvList");
+  list.innerHTML = events.length ? "" : '<div class="muted">Aucun rendez-vous trouvé.</div>';
+  selectedIds.clear();
+  updateBtnState();
 
-  rdvListEl.innerHTML = "";
-  if(!events.length){
-    rdvListEl.innerHTML = `<div class="muted">Aucun rendez-vous trouvé pour cette date.</div>`;
-    return;
-  }
-
-  for(const e of events){
+  events.forEach(e => {
     const sent = isSent(e.id);
     const hasPhone = !!e.phone;
-
-    const el = document.createElement("div");
-    el.className = "item";
-
-    el.innerHTML = `
-      <div class="itemLeft">
-        <input type="checkbox" class="pickBox" data-id="${escapeHtml(e.id)}" ${sent ? "disabled" : ""} ${!hasPhone ? "disabled" : ""} />
-        <div class="itemMain">
-          <div class="line1">${escapeHtml(e.summary)}</div>
-          <div class="line2">${escapeHtml(formatWhen(e))} · ${hasPhone ? ("Tel " + escapeHtml(e.phone)) : "Téléphone non trouvé"}</div>
-          ${!hasPhone ? `<div class="err">Téléphone non trouvé. Ajoutez dans la description : Téléphone: 06XXXXXXXX</div>` : ``}
-        </div>
+    const hhmm = `${pad2(e.start.getHours())}:${pad2(e.start.getMinutes())}`;
+    
+    const div = document.createElement("div");
+    div.className = `item ${(!hasPhone || sent) ? 'disabled' : ''}`;
+    div.innerHTML = `
+      <input type="checkbox" class="pickBox" data-id="${e.id}" ${(!hasPhone || sent) ? 'disabled' : ''}>
+      <div class="item-time">${hhmm}</div>
+      <div class="item-info">
+        <div class="item-name">${e.summary}</div>
+        <div class="item-meta">${hasPhone ? e.phone : 'Téléphone manquant'}</div>
       </div>
       <div>
-        ${sent ? `<span class="badgeSent">Déjà envoyé</span>` : ``}
+        ${sent ? '<span class="badge badge-sent">Envoyé</span>' : ''}
+        ${!hasPhone ? '<span class="badge badge-error">Sans Tel</span>' : ''}
       </div>
     `;
-    rdvListEl.appendChild(el);
-  }
+    list.appendChild(div);
+  });
 
-  rdvListEl.querySelectorAll(".pickBox").forEach(cb => {
-    cb.addEventListener("change", (ev) => {
-      const id = ev.target.dataset.id;
-      if(ev.target.checked) selectedIds.add(id);
-      else selectedIds.delete(id);
-      updateContinueBtn();
-    });
+  list.querySelectorAll(".pickBox").forEach(cb => {
+    cb.onchange = (ev) => {
+      if(ev.target.checked) selectedIds.add(ev.target.dataset.id);
+      else selectedIds.delete(ev.target.dataset.id);
+      updateBtnState();
+    };
   });
 }
 
-/* ==========================
-   UI: VIEW 2 (send)
-========================== */
-const viewPick = document.getElementById("viewPick");
-const viewSend = document.getElementById("viewSend");
-const sendListEl = document.getElementById("sendList");
-const sendSubtitleEl = document.getElementById("sendSubtitle");
-const sendProgressEl = document.getElementById("sendProgress");
-const btnOpenSms = document.getElementById("btnOpenSms");
-const btnMarkSent = document.getElementById("btnMarkSent");
-const btnSkip = document.getElementById("btnSkip");
-
-let sendQueue = [];
-let sendIndex = 0;
-
-function showPick(){
-  viewSend.classList.add("hidden");
-  viewPick.classList.remove("hidden");
-}
-function showSend(){
-  viewPick.classList.add("hidden");
-  viewSend.classList.remove("hidden");
+function updateBtnState(){
+  const btn = document.getElementById("btnToSend");
+  btn.disabled = selectedIds.size === 0;
+  btn.textContent = `Continuer (${selectedIds.size})`;
 }
 
-function currentSender(){
-  const sel = document.getElementById("senderPhone").value;
-  if(sel === "__custom__"){
-    return document.getElementById("senderPhone").value.trim() || "06 69 53 77 91";
-  }
-  return sel;
-}
+/* Actions */
+document.getElementById("btnLoad").onclick = async () => {
+  try {
+    eventsCache = await loadEventsForDate(document.getElementById("datePick").value);
+    renderEventsList(eventsCache);
+  } catch(e) { alert(e.message); }
+};
+
+document.getElementById("btnConnect").onclick = () => { ensureTokenClient(); tokenClient.requestAccessToken(); };
+document.getElementById("btnDisconnect").onclick = () => { accessToken = ""; document.getElementById("authStatus").textContent = "Non connecté"; document.getElementById("authStatus").style.color = "var(--muted)"; };
+
+document.getElementById("btnToSend").onclick = () => {
+  sendQueue = eventsCache.filter(e => selectedIds.has(e.id));
+  sendIndex = 0;
+  document.getElementById("viewPick").classList.add("hidden");
+  document.getElementById("viewSend").classList.remove("hidden");
+  updateSendUI();
+};
 
 function updateSendUI(){
-  const total = sendQueue.length;
   const cur = sendQueue[sendIndex];
-
-  sendSubtitleEl.textContent = `Sélection : ${total} rendez-vous`;
-  sendProgressEl.textContent = total ? `SMS ${sendIndex+1}/${total}` : "Aucun SMS.";
-
-  sendListEl.innerHTML = "";
-  for(let i=0;i<sendQueue.length;i++){
-    const e = sendQueue[i];
-    const active = (i===sendIndex);
-    const el = document.createElement("div");
-    el.className = "item";
-    el.style.opacity = active ? "1" : ".55";
-    el.innerHTML = `
-      <div class="itemMain">
-        <div class="line1">${escapeHtml(e.summary)}</div>
-        <div class="line2">${escapeHtml(formatWhen(e))} · Tel ${escapeHtml(e.phone)}</div>
+  document.getElementById("sendProgress").textContent = `SMS ${sendIndex + 1} sur ${sendQueue.length}`;
+  const list = document.getElementById("sendList");
+  list.innerHTML = `
+    <div class="item" style="border-color: var(--primary); background: #eff6ff;">
+      <div class="item-time">${pad2(cur.start.getHours())}:${pad2(cur.start.getMinutes())}</div>
+      <div class="item-info">
+        <div class="item-name">${cur.summary}</div>
+        <div class="item-meta">Envoi vers ${cur.phone}</div>
       </div>
-      <div>${active ? `<span class="badgeSent">En cours</span>` : ``}</div>
-    `;
-    sendListEl.appendChild(el);
-  }
-
-  btnOpenSms.disabled = !cur;
-  btnMarkSent.disabled = !cur;
-  btnSkip.disabled = !cur;
+    </div>
+  `;
 }
 
-function gotoSendView(){
-  const ids = Array.from(selectedIds);
-  sendQueue = eventsCache.filter(e => ids.includes(e.id));
-  sendIndex = 0;
-
-  if(!sendQueue.length){
-    alert("Aucun rendez-vous sélectionné.");
-    return;
-  }
-  showSend();
-  updateSendUI();
-}
-
-function openSmsForCurrent(){
+document.getElementById("btnOpenSms").onclick = () => {
   const ev = sendQueue[sendIndex];
-  if(!ev) return;
+  let prenom = ev.prenom || ev.summary.split(/\s+/).pop();
+  const body = buildSmsText({ prenom, dateObj: ev.start, hhmm: `${pad2(ev.start.getHours())}:${pad2(ev.start.getMinutes())}` });
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  window.location.href = `sms:${ev.phone}${isIOS ? '&' : '?'}body=${encodeURIComponent(body)}`;
+};
 
-  const start = ev.start;
-  const hhmm = `${pad2(start.getHours())}:${pad2(start.getMinutes())}`;
+document.getElementById("btnMarkSent").onclick = () => {
+  markSent(sendQueue[sendIndex].id);
+  nextSms();
+};
 
-  // prenom: priorité "Prénom:" dans description, sinon tentative depuis titre
-  let prenom = ev.prenom;
-  if(!prenom){
-    // exemple "RDV3 Françoise" -> prend le dernier mot (pas parfait, mais utile)
-    const parts = (ev.summary || "").trim().split(/\s+/);
-    if(parts.length) prenom = parts[parts.length-1];
-  }
+document.getElementById("btnSkip").onclick = nextSms;
 
-  const body = buildSmsText({ prenom, dateObj: start, hhmm });
-  // Note: on ne peut pas forcer le "from" dans l'app SMS; on conserve le choix comme info interne.
-  const href = smsHref(ev.phone, body);
-
-  window.location.href = href;
-}
-
-function markCurrentSent(){
-  const ev = sendQueue[sendIndex];
-  if(!ev) return;
-  markSent(ev.id);
-
-  // move next
+function nextSms(){
   sendIndex++;
   if(sendIndex >= sendQueue.length){
-    alert("Terminé. Tous les SMS sélectionnés ont été marqués comme envoyés.");
-    // refresh list status
-    showPick();
+    alert("Tous les SMS ont été traités.");
+    document.getElementById("viewSend").classList.add("hidden");
+    document.getElementById("viewPick").classList.remove("hidden");
     renderEventsList(eventsCache);
-    return;
+  } else {
+    updateSendUI();
   }
-  updateSendUI();
 }
 
-function skipCurrent(){
-  sendIndex++;
-  if(sendIndex >= sendQueue.length){
-    showPick();
-    renderEventsList(eventsCache);
-    return;
+document.getElementById("btnBack").onclick = () => {
+  document.getElementById("viewSend").classList.add("hidden");
+  document.getElementById("viewPick").classList.remove("hidden");
+};
+
+document.getElementById("btnClearSent").onclick = () => {
+  if(confirm("Réinitialiser l'historique ?")) { clearSent(); renderEventsList(eventsCache); }
+};
+
+/* Init Date & Sauvegarde expéditeur */
+const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+document.getElementById("datePick").value = toLocalISO(tomorrow);
+
+const senderSelect = document.getElementById("senderSelect");
+const customInput = document.getElementById("customSender");
+
+const savedSender = localStorage.getItem(SENDER_KEY);
+if(savedSender){
+  if(savedSender.startsWith("__custom__:")){
+    senderSelect.value = "__custom__";
+    customInput.classList.remove("hidden");
+    customInput.value = savedSender.replace("__custom__:", "");
+  } else {
+    const opts = Array.from(senderSelect.options).map(o => o.value);
+    if(opts.includes(savedSender)) senderSelect.value = savedSender;
   }
-  updateSendUI();
 }
 
-/* ==========================
-   INIT + EVENTS
-========================== */
-(function init(){
-  // Date par défaut = demain
-  const d = new Date();
-  d.setDate(d.getDate()+1);
-  document.getElementById("datePick").value = toLocalISO(d);
-
-  // Sender restore
-  const savedSender = localStorage.getItem(SENDER_KEY);
-  if(savedSender){
-    if(savedSender.startsWith("__custom__:")){
-      document.getElementById("senderPhone").value = "__custom__";
-      document.getElementById("customSenderWrap").classList.remove("hidden");
-      document.getElementById("senderPhone").value = savedSender.replace("__custom__:", "");
-    } else {
-      // if not in list, set custom
-      const opts = Array.from(document.getElementById("senderPhone").options).map(o => o.value);
-      if(opts.includes(savedSender)){
-        document.getElementById("senderPhone").value = savedSender;
-      } else {
-        document.getElementById("senderPhone").value = "__custom__";
-        document.getElementById("customSenderWrap").classList.remove("hidden");
-        document.getElementById("senderPhone").value = savedSender;
-      }
-    }
+function persistSender(){
+  if(senderSelect.value === "__custom__") {
+    localStorage.setItem(SENDER_KEY, "__custom__:" + customInput.value.trim());
+  } else {
+    localStorage.setItem(SENDER_KEY, senderSelect.value);
   }
+}
 
-  // Buttons
-  document.getElementById("btnConnect").addEventListener("click", () => connect());
-  document.getElementById("btnDisconnect").addEventListener("click", () => disconnect());
-
-  document.getElementById("btnLoad").addEventListener("click", async () => {
-    try{
-      const dateStr = document.getElementById("datePick").value;
-      loadInfoEl.textContent = "Chargement…";
-      const events = await loadEventsForDate(dateStr);
-      eventsCache = events;
-      loadInfoEl.textContent = `Chargé : ${events.length} rendez-vous.`;
-      renderEventsList(events);
-    } catch(e){
-      loadInfoEl.textContent = "";
-      alert("Erreur : " + (e.message || e));
-    }
-  });
-
-  btnToSend.addEventListener("click", () => gotoSendView());
-
-  document.getElementById("btnBack").addEventListener("click", () => showPick());
-
-  btnOpenSms.addEventListener("click", () => openSmsForCurrent());
-  btnMarkSent.addEventListener("click", () => markCurrentSent());
-  btnSkip.addEventListener("click", () => skipCurrent());
-
-  document.getElementById("btnClearSent").addEventListener("click", () => {
-    if(confirm("Réinitialiser l’historique local des SMS envoyés ?")){
-      clearSent();
-      if(eventsCache.length) renderEventsList(eventsCache);
-    }
-  });
-
-  // Sender UI
-  const senderPhone = document.getElementById("senderPhone");
-  const customWrap = document.getElementById("customSenderWrap");
-  const customInput = document.getElementById("senderPhone");
-
-  function persistSender(){
-    const sel = senderPhone.value;
-    if(sel === "__custom__"){
-      localStorage.setItem(SENDER_KEY, "__custom__:" + (customInput.value.trim() || ""));
-    } else {
-      localStorage.setItem(SENDER_KEY, sel);
-    }
-  }
-
-  senderPhone.addEventListener("change", () => {
-    if(senderPhone.value === "__custom__") customWrap.classList.remove("hidden");
-    else customWrap.classList.add("hidden");
-    persistSender();
-  });
-  customInput.addEventListener("input", persistSender);
-
-})();
+senderSelect.onchange = (e) => {
+  customInput.classList.toggle("hidden", e.target.value !== "__custom__");
+  persistSender();
+};
+customInput.oninput = persistSender;
 
 </script>
 </body>
