@@ -583,4 +583,59 @@ function skipCurrent(){
 
   // Buttons
   document.getElementById("btnConnect").addEventListener("click", () => connect());
-  document.getElementById("btnDisconnect").add
+  document.getElementById("btnDisconnect").addEventListener("click", () => disconnect());
+
+  document.getElementById("btnLoad").addEventListener("click", async () => {
+    try{
+      const dateStr = document.getElementById("datePick").value;
+      loadInfoEl.textContent = "Chargement…";
+      const events = await loadEventsForDate(dateStr);
+      eventsCache = events;
+      loadInfoEl.textContent = `Chargé : ${events.length} rendez-vous.`;
+      renderEventsList(events);
+    } catch(e){
+      loadInfoEl.textContent = "";
+      alert("Erreur : " + (e.message || e));
+    }
+  });
+
+  btnToSend.addEventListener("click", () => gotoSendView());
+
+  document.getElementById("btnBack").addEventListener("click", () => showPick());
+
+  btnOpenSms.addEventListener("click", () => openSmsForCurrent());
+  btnMarkSent.addEventListener("click", () => markCurrentSent());
+  btnSkip.addEventListener("click", () => skipCurrent());
+
+  document.getElementById("btnClearSent").addEventListener("click", () => {
+    if(confirm("Réinitialiser l’historique local des SMS envoyés ?")){
+      clearSent();
+      if(eventsCache.length) renderEventsList(eventsCache);
+    }
+  });
+
+  // Sender UI
+  const senderSelect = document.getElementById("senderSelect");
+  const customWrap = document.getElementById("customSenderWrap");
+  const customInput = document.getElementById("customSender");
+
+  function persistSender(){
+    const sel = senderSelect.value;
+    if(sel === "__custom__"){
+      localStorage.setItem(SENDER_KEY, "__custom__:" + (customInput.value.trim() || ""));
+    } else {
+      localStorage.setItem(SENDER_KEY, sel);
+    }
+  }
+
+  senderSelect.addEventListener("change", () => {
+    if(senderSelect.value === "__custom__") customWrap.classList.remove("hidden");
+    else customWrap.classList.add("hidden");
+    persistSender();
+  });
+  customInput.addEventListener("input", persistSender);
+
+})();
+</script>
+</body>
+</html>
