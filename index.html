@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>smsv1.0 - Import Google Agenda vers SMS</title>
+</head>
+
+<body style="font-family: Arial, sans-serif; padding: 16px; max-width: 900px; margin: 0 auto;">
+  <h2 style="margin:0 0 8px;">smsv1.0 , Google Agenda -> SMS pré-rempli</h2>
+
+  <div style="padding:12px; border:1px solid #ddd; border-radius:12px; margin-bottom:14px;">
+    <div style="font-weight:700; margin-bottom:8px;">Connexion Google</div>
+    <div style="font-size:14px; line-height:1.4;">
+      Collez votre <strong>Client ID OAuth Web</strong> (Google Cloud Console), puis connectez-vous.
+      Ensuite, chargez les rendez-vous et préparez vos SMS rendez-vous par rendez-vous.
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
+      <input id="clientId" placeholder="Client ID OAuth (ex : 123...apps.googleusercontent.com)"
+             style="flex:1; min-width:280px; padding:10px; font-size:16px;">
+      <button id="connect"
+              style="padding:12px 14px; border:0; border-radius:10px; background:#111; color:#fff; font-size:15px;">
+        Se connecter
+      </button>
+    </div>
+
+    <div id="status" style="margin-top:10px; font-size:14px;"></div>
+  </div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+    <button id="loadToday" style="padding:12px 14px; border:0; border-radius:10px; background:#111; color:#fff; font-size:15px;">
+      Charger les RDV d’aujourd’hui
+    </button>
+    <button id="loadNext48" style="padding:12px 14px; border:1px solid #ddd; border-radius:10px; background:#fff; font-size:15px;">
+      Charger les 48 prochaines heures
+    </button>
+  </div>
+
+  <div id="list" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+  <hr style="margin:18px 0;">
+
+  <div style="padding:12px; border:1px solid #ddd; border-radius:12px;">
+    <div style="font-weight:700; margin-bottom:8px;">Modèle universel à mettre dans la description Google Agenda</div>
+    <div style="font-size:14px; line-height:1.45;">
+      L’application cherche le numéro dans la description avec le format “Clé: valeur”.
+      Le champ indispensable est <strong>Téléphone</strong>. Les autres sont optionnels.
+    </div>
+
+    <pre id="model" style="margin:10px 0 0; padding:12px; border:1px solid #eee; border-radius:10px; background:#fafafa; font-size:13px; white-space:pre-wrap;">Prénom: 
+Nom: 
+Téléphone: 
+Email: 
+Type: Cabinet
+Notes: </pre>
+
+    <button id="copyModel"
+            style="margin-top:10px; padding:12px 14px; border:1px solid #ddd; border-radius:10px; background:#fff; font-size:15px;">
+      Copier le modèle
+    </button>
+  </div>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    const el = (id) => document.getElementById(id);
+
+    const SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+    let tokenClient = null;
+    let accessToken = null;
+
+    function setStatus(msg) { el('status').textContent = msg; }
+
+    function requireClientId() {
+      const clientId = (el('clientId').value || '').trim();
+      if (!clientId) {
+        alert("Veuillez coller votre Client ID OAuth.");
+        return null;
+      }
+      return clientId;
+    }
+
+    function initTokenClient() {
+      const clientId = requireClientId();
+      if (!clientId) return false;
+
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: SCOPES,
+        callback: (resp) => {
+          if (resp && resp.access_token) {
+            accessToken = resp.access_token;
+            setStatus("Connecté. Vous pouvez charger vos rendez-vous.");
+          } else {
+            setStatus("Connexion échouée.");
+          }
+        }
+      });
+      return true;
+    }
+
+    el('connect').addEventListener('click', () => {
+      if (!initTokenClient()) return;
+      setStatus("Demande d’autorisation en cours...");
+      tokenClient.requestAccessToken({ prompt: "consent" });
+    });
+
+    // --------- Parsing du modèle universel ---------
+    function normalizePhone(raw) {
+      if (!raw) return "";
+      let s = raw.replace(/[()\\.\\-\\s]/g, "");
+      if (s.startsWith("0033")) s = "+" + s.slice(2);
+      if (/^0\\d{9}$/.test(s)) s = "+33" + s.slice(1);
+      return s;
+    }
+
+    function extractField(description, labels) {
+      if (!description) return null;
+      for (const lab of labels) {
+        const re = new RegExp("^\\s*" + lab + "\\s*:\\s*([^\\n\\r]+)\\s*$", "im");
+        const m = description.match(re);
+        if (m && m[1]) return m[1].trim();
+      }
+      return null;
+    }
+
+    function parseUniversal(description) {
+      const prenom = extractField(description, ["Pr[ée]nom", "Prenom", "FirstName"]);
+      const nom = extractField(description, ["Nom", "LastName"]);
+      const telRaw = extractField(description, ["T[ée]l[ée]phone", "Telephone", "Tel", "Phone", "Mobile"]);
+      const email = extractField(description, ["E-?mail", "Mail"]);
+      const type = extractField(description, ["Type", "Mode"]);
+      const notes = extractField(description, ["Notes?", "Info"]);
+      const tel = normalizePhone(telRaw || "");
+      return { prenom, nom, tel, email, type, notes };
+    }
+
+    function buildDayAndTime(dateObj) {
+      const day = new Intl.DateTimeFormat("fr-FR", { weekday: "long", timeZone: "Europe/Paris" })
+        .format(dateObj)
+        .toLowerCase();
+      const hhmm = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Paris" })
+        .format(dateObj);
+      const heure = hhmm.replace(":", "h");
+      return { day, heure };
+    }
+
+    function buildMessage(day, heure) {
+      return `Bonjour,
+
+Je vous confirme notre rendez-vous ce ${day} à ${heure}.
+
+Le cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan.
+(Rez de chaussée, à droite).
+Un parking gratuit se trouve à 50 mètres, juste en face du parc des sports.
+
+Bien cordialement,
+Damien Leignel
+Psychopraticien, Hypnose, PNL, EMDR, TCC, Analyse Transactionnelle & Coaching`;
+    }
+
+    // --------- Google Calendar API ---------
+    async function fetchEvents(timeMin, timeMax) {
+      if (!accessToken) throw new Error("Non connecté.");
+
+      const params = new URLSearchParams({
+        singleEvents: "true",
+        orderBy: "startTime",
+        maxResults: "50",
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString()
+      });
+
+      const url = "https://www.googleapis.com/calendar/v3/calendars/primary/events?" + params.toString();
+
+      const res = await fetch(url, {
+        headers: { Authorization: "Bearer " + accessToken }
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error("Erreur API Google Calendar : " + res.status + " " + txt);
+      }
+
+      const data = await res.json();
+      return data.items || [];
+    }
+
+    // --------- UI ---------
+    function render(events) {
+      const list = el('list');
+      list.innerHTML = "";
+
+      if (!events.length) {
+        list.innerHTML = `<div style="padding:12px; border:1px solid #ddd; border-radius:12px;">Aucun rendez-vous dans la période.</div>`;
+        return;
+      }
+
+      events.forEach((ev) => {
+        const startStr = ev.start && (ev.start.dateTime || ev.start.date);
+        if (!startStr) return;
+        if (ev.start && ev.start.date && !ev.start.dateTime) return;
+
+        const startDate = new Date(startStr);
+        const { day, heure } = buildDayAndTime(startDate);
+
+        const desc = ev.description || "";
+        const p = parseUniversal(desc);
+
+        const title = ev.summary || "Rendez-vous";
+        const identity = [p.prenom, p.nom].filter(Boolean).join(" ");
+
+        const msg = buildMessage(day, heure);
+
+        const card = document.createElement("div");
+        card.style.border = "1px solid #ddd";
+        card.style.borderRadius = "12px";
+        card.style.padding = "12px";
+
+        const t = document.createElement("div");
+        t.style.fontWeight = "700";
+        t.style.marginBottom = "6px";
+        t.textContent = `${title}${identity ? " , " + identity : ""} , ${day} ${heure}`;
+
+        const meta = document.createElement("div");
+        meta.style.fontSize = "14px";
+        meta.style.marginBottom = "10px";
+        meta.textContent = `Téléphone : ${p.tel || "non trouvé"}${p.type ? " | Type : " + p.type : ""}${p.email ? " | Email : " + p.email : ""}`;
+
+        const btnRow = document.createElement("div");
+        btnRow.style.display = "flex";
+        btnRow.style.gap = "10px";
+        btnRow.style.flexWrap = "wrap";
+
+        const btn = document.createElement("button");
+        btn.textContent = "Préparer le SMS (validation)";
+        btn.style.flex = "1";
+        btn.style.minWidth = "240px";
+        btn.style.padding = "12px";
+        btn.style.border = "0";
+        btn.style.borderRadius = "10px";
+        btn.style.background = "#111";
+        btn.style.color = "#fff";
+        btn.style.fontSize = "15px";
+
+        btn.onclick = () => {
+          if (!p.tel) {
+            alert("Téléphone non trouvé dans la description. Ajoutez une ligne : Téléphone: 06XXXXXXXX");
+            return;
+          }
+
+          const ok = confirm(
+            "Valider l’ouverture du SMS pré-rempli ?\\n\\n" +
+            "Destinataire : " + p.tel + "\\n" +
+            "Rendez-vous : " + day + " à " + heure + "\\n\\n" +
+            "Message :\\n" + msg
+          );
+          if (!ok) return;
+
+          const url = `sms:${p.tel}?body=${encodeURIComponent(msg)}`;
+          window.location.href = url;
+        };
+
+        const copy = document.createElement("button");
+        copy.textContent = "Copier le texte";
+        copy.style.padding = "12px";
+        copy.style.border = "1px solid #ddd";
+        copy.style.borderRadius = "10px";
+        copy.style.background = "#fff";
+        copy.style.fontSize = "15px";
+        copy.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(msg);
+            alert("Texte copié.");
+          } catch (e) {
+            alert("Copie impossible sur ce navigateur. Utilisez plutôt le bouton de préparation SMS.");
+          }
+        };
+
+        btnRow.appendChild(btn);
+        btnRow.appendChild(copy);
+
+        card.appendChild(t);
+        card.appendChild(meta);
+        card.appendChild(btnRow);
+
+        list.appendChild(card);
+      });
+    }
+
+    async function loadToday() {
+      const now = new Date();
+      const start = new Date(now);
+      start.setHours(0,0,0,0);
+      const end = new Date(now);
+      end.setHours(23,59,59,999);
+
+      setStatus("Chargement des rendez-vous d’aujourd’hui...");
+      const events = await fetchEvents(start, end);
+      render(events);
+      setStatus("Chargé : " + events.length + " rendez-vous.");
+    }
+
+    async function loadNext48() {
+      const now = new Date();
+      const end = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+      setStatus("Chargement des 48 prochaines heures...");
+      const events = await fetchEvents(now, end);
+      render(events);
+      setStatus("Chargé : " + events.length + " rendez-vous.");
+    }
+
+    el('loadToday').addEventListener('click', async () => {
+      if (!accessToken) { alert("Veuillez d’abord vous connecter."); return; }
+      try { await loadToday(); } catch (e) { setStatus(e.message); alert(e.message); }
+    });
+
+    el('loadNext48').addEventListener('click', async () => {
+      if (!accessToken) { alert("Veuillez d’abord vous connecter."); return; }
+      try { await loadNext48(); } catch (e) { setStatus(e.message); alert(e.message); }
+    });
+
+    el('copyModel').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(el('model').textContent);
+        alert("Modèle copié.");
+      } catch (e) {
+        alert("Copie impossible sur ce navigateur.");
+      }
+    });
+  </script>
+</body>
+</html>
