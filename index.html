@@ -48,6 +48,12 @@
   .authInline{flex-basis:100%;justify-content:space-between}
 }
 
+
+
+  .compactTop .line{ display:flex; align-items:center; gap:10px; margin-top:10px; }
+  .inlineLabel{ font-size:12px; color:#6b7280; min-width:105px; }
+  #senderPhone{ flex:1; }
+  .lineAuth{ justify-content:flex-start; }
 </style>
 </head>
 <body>
@@ -57,18 +63,15 @@
   <div class="titleLine">
     <h1>SMS automatique</h1>
   </div>
-  <div class="controlsLine">
-    <div class="senderInline">
-      <select id="senderSelect">
-              <option value="06 69 53 77 91">06 69 53 77 91 (par défaut)</option>
-              <option value="__custom__">Autre…</option>
-            </select>
-      <input id="customSender" type="text" inputmode="tel" placeholder="06 XX XX XX XX" />
-    </div>
-    <div class="authInline">
-      <button class="btn" id="btnConnect">Se connecter</button>
-      <div class="badge" id="authStatus">Non connecté.</div>
-    </div>
+
+  <div class="line">
+    <label class="inlineLabel" for="senderPhone">Numéro d’envoi</label>
+    <input id="senderPhone" type="text" inputmode="tel" placeholder="06 XX XX XX XX" />
+  </div>
+
+  <div class="line lineAuth">
+    <button class="btn" id="btnConnect">Se connecter</button>
+    <div class="badge" id="authStatus">Non connecté.</div>
   </div>
 </div>
 <hr class="sep" />
@@ -238,7 +241,7 @@ function buildSmsText({prenom, dateObj, hhmm}){
   const monthName = frMonthName(dateObj);
 
   return (
-`Bonjour ${prenom || ""}
+`Bonjour ${prenom || ""},
 
 Je vous confirme notre rendez-vous ce ${dayName} ${dayNum} ${monthName} à ${hhmm}
 
@@ -453,9 +456,9 @@ function showSend(){
 }
 
 function currentSender(){
-  const sel = document.getElementById("senderSelect").value;
+  const sel = document.getElementById("senderPhone").value;
   if(sel === "__custom__"){
-    return document.getElementById("customSender").value.trim() || "06 69 53 77 91";
+    return document.getElementById("senderPhone").value.trim() || "06 69 53 77 91";
   }
   return sel;
 }
@@ -564,18 +567,18 @@ function skipCurrent(){
   const savedSender = localStorage.getItem(SENDER_KEY);
   if(savedSender){
     if(savedSender.startsWith("__custom__:")){
-      document.getElementById("senderSelect").value = "__custom__";
+      document.getElementById("senderPhone").value = "__custom__";
       document.getElementById("customSenderWrap").classList.remove("hidden");
-      document.getElementById("customSender").value = savedSender.replace("__custom__:", "");
+      document.getElementById("senderPhone").value = savedSender.replace("__custom__:", "");
     } else {
       // if not in list, set custom
-      const opts = Array.from(document.getElementById("senderSelect").options).map(o => o.value);
+      const opts = Array.from(document.getElementById("senderPhone").options).map(o => o.value);
       if(opts.includes(savedSender)){
-        document.getElementById("senderSelect").value = savedSender;
+        document.getElementById("senderPhone").value = savedSender;
       } else {
-        document.getElementById("senderSelect").value = "__custom__";
+        document.getElementById("senderPhone").value = "__custom__";
         document.getElementById("customSenderWrap").classList.remove("hidden");
-        document.getElementById("customSender").value = savedSender;
+        document.getElementById("senderPhone").value = savedSender;
       }
     }
   }
@@ -614,12 +617,12 @@ function skipCurrent(){
   });
 
   // Sender UI
-  const senderSelect = document.getElementById("senderSelect");
+  const senderPhone = document.getElementById("senderPhone");
   const customWrap = document.getElementById("customSenderWrap");
-  const customInput = document.getElementById("customSender");
+  const customInput = document.getElementById("senderPhone");
 
   function persistSender(){
-    const sel = senderSelect.value;
+    const sel = senderPhone.value;
     if(sel === "__custom__"){
       localStorage.setItem(SENDER_KEY, "__custom__:" + (customInput.value.trim() || ""));
     } else {
@@ -627,8 +630,8 @@ function skipCurrent(){
     }
   }
 
-  senderSelect.addEventListener("change", () => {
-    if(senderSelect.value === "__custom__") customWrap.classList.remove("hidden");
+  senderPhone.addEventListener("change", () => {
+    if(senderPhone.value === "__custom__") customWrap.classList.remove("hidden");
     else customWrap.classList.add("hidden");
     persistSender();
   });
