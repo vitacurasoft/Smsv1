@@ -1,1 +1,586 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SMS automatique</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root { --bg:#ffffff; --text:#111827; --muted:#6b7280; --card:#f9fafb; --stroke:#e5e7eb; --btn:#111827; --btnText:#ffffff; --danger:#b91c1c; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:var(--bg); color:var(--text); }
+    .wrap{ max-width: 900px; margin: 0 auto; padding: 18px 14px 40px; }
+    .top{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+    
+    .compactTop{ gap:10px; }
+    .compactTop .titleWrap{ padding-top:2px; }
+    .compactTop .topControls{ background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:10px; }
+    .compactTop h1{ font-size:28px; }
+    .kpi{ font-weight:600; }
+h1{ margin:0; font-size:28px; line-height:1.1; }
+    .muted{ color:var(--muted); font-size:14px; }
+    .panel{ background:var(--card); border:1px solid var(--stroke); border-radius:16px; padding:14px; }
+    .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .row > *{ flex:0 0 auto; }
+    label{ font-size:13px; color:var(--muted); display:block; margin-bottom:6px; }
+    input[type="date"], select, input[type="text"]{ padding:12px 12px; border:1px solid var(--stroke); border-radius:12px; font-size:16px; background:#fff; min-width: 210px; }
+    .btn{ background:var(--btn); color:var(--btnText); border:0; padding:12px 14px; border-radius:12px; font-size:16px; cursor:pointer; }
+    .btn.secondary{ background:#fff; color:var(--text); border:1px solid var(--stroke); }
+    .btn:disabled{ opacity:.45; cursor:not-allowed; }
+    .list{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
+    .item{ background:#fff; border:1px solid var(--stroke); border-radius:16px; padding:12px; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    .itemLeft{ display:flex; gap:12px; align-items:center; min-width:0; }
+    .itemMain{ min-width:0; }
+    .line1{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .line2{ color:var(--muted); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .badgeSent{ font-size:12px; padding:5px 9px; border-radius:999px; border:1px solid var(--stroke); background:#f3f4f6; }
+    .err{ color:var(--danger); font-size:13px; margin-top:6px; }
+    .divider{ height:1px; background:var(--stroke); margin:14px 0; }
+    .hidden{ display:none !important; }
+    .footerActions{ position:sticky; bottom:0; background:linear-gradient(to top, rgba(255,255,255,1), rgba(255,255,255,.86)); padding:12px 0 0; }
+    .footerBar{ display:flex; gap:10px; justify-content:flex-end; }
+    .kpi{ font-size:14px; color:var(--muted); margin-top:8px; }
+    .small{ font-size:13px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top compactTop">
+  <div class="titleWrap">
+    <h1>SMS automatique</h1>
+  </div>
 
+  <div class="topControls">
+    <div class="row" style="gap:10px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:220px;">
+        <div class="label">Numéro d'envoi (info)</div>
+        <select class="select" id="senderPreset">
+          <option value="0669537791" selected>06 69 53 77 91 (par défaut)</option>
+          <option value="other">Autre…</option>
+        </select>
+      </div>
+      <div style="flex:1; min-width:220px;">
+        <div class="label">Votre numéro</div>
+        <input class="input" id="senderCustom" type="tel" inputmode="numeric" placeholder="06XXXXXXXX" value="0669537791" />
+      </div>
+    </div>
+
+    <div class="row" style="justify-content:space-between; align-items:center; margin-top:10px;">
+      <div class="kpi" id="authStatus">Non connecté.</div>
+      <div class="row" style="gap:10px;">
+        <button class="btn" id="btnConnect">Se connecter</button>
+        <button class="btn secondary" id="btnDisconnect">Déconnecter</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VIEW 1: sélection des RDV -->
+    <div id="viewPick" class="panel" style="margin-top:14px;">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <label>Date des rendez-vous</label>
+          <input id="datePick" type="date" />
+          <div class="muted small" style="margin-top:6px;">Par défaut : demain. Vous pouvez changer la date.</div>
+        </div>
+        <div style="text-align:right;">
+          <button class="btn" id="btnLoad">Charger les RDV</button>
+          <div class="kpi" id="loadInfo"></div>
+        </div>
+      </div>
+
+      <div class="list" id="rdvList"></div>
+
+      <div class="footerActions">
+        <div class="footerBar">
+          <button class="btn secondary" id="btnClearSent">Réinitialiser “SMS envoyés”</button>
+          <button class="btn" id="btnToSend" disabled>Continuer (0 sélection)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: envoi -->
+    <div id="viewSend" class="panel hidden" style="margin-top:14px;">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <div class="line1">Envoi des SMS</div>
+          <div class="muted" id="sendSubtitle"></div>
+        </div>
+        <button class="btn secondary" id="btnBack">Retour</button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="sendList" class="list"></div>
+
+      <div class="divider"></div>
+
+      <div class="row" style="justify-content:space-between;">
+        <div class="muted" id="sendProgress"></div>
+        <div class="row">
+          <button class="btn secondary" id="btnSkip">Passer</button>
+          <button class="btn" id="btnOpenSms">Ouvrir SMS</button>
+          <button class="btn secondary" id="btnMarkSent">Marquer comme envoyé</button>
+        </div>
+      </div>
+
+      <div class="muted small" style="margin-top:10px;">
+        Le bouton “Ouvrir SMS” ouvre l’application SMS avec le message pré-rempli. Sur mobile, l’envoi final se fait dans l’appli SMS.
+      </div>
+    </div>
+
+    <div class="muted" style="margin-top:12px;">
+      Astuce : pour que le téléphone soit reconnu, mettez dans la description Google Agenda une ligne du type <strong>Téléphone: 06XXXXXXXX</strong>.
+    </div>
+  </div>
+
+<script>
+/* ==========================
+   CONFIG
+========================== */
+const OAUTH_CLIENT_ID = "962693468865-fpumnvpt5517nfs21kobao8l2ejni1qk.apps.googleusercontent.com";
+const SCOPES = "https://www.googleapis.com/auth/calendar.readonly openid email profile";
+const CAL_API = "https://www.googleapis.com/calendar/v3";
+
+/* ==========================
+   UTIL
+========================== */
+function pad2(n){ return String(n).padStart(2,"0"); }
+function frDayName(date){
+  const jours = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+  return jours[date.getDay()];
+}
+function frMonthName(date){
+  const mois = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+  return mois[date.getMonth()];
+}
+function toLocalISO(date){
+  const y = date.getFullYear(), m = pad2(date.getMonth()+1), d = pad2(date.getDate());
+  return `${y}-${m}-${d}`;
+}
+function normPhone(s){
+  if(!s) return "";
+  // conserve + et chiffres
+  const cleaned = s.replace(/[^\d+]/g,"");
+  return cleaned;
+}
+function smsHref(phone, body){
+  // Android: sms:NUM?body=...  iOS: sms:NUM&body=...
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const sep = isIOS ? "&" : "?";
+  return `sms:${encodeURIComponent(phone)}${sep}body=${encodeURIComponent(body)}`;
+}
+function escapeHtml(str){
+  return (str||"").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* ==========================
+   STORAGE: sent flags + sender
+========================== */
+const SENT_KEY = "smsv1_sent_map_v1";
+const SENDER_KEY = "smsv1_sender_v1";
+function getSentMap(){
+  try { return JSON.parse(localStorage.getItem(SENT_KEY) || "{}"); } catch(e){ return {}; }
+}
+function setSentMap(map){
+  localStorage.setItem(SENT_KEY, JSON.stringify(map||{}));
+}
+function isSent(eventId){
+  const map = getSentMap();
+  return !!map[eventId];
+}
+function markSent(eventId){
+  const map = getSentMap();
+  map[eventId] = { at: Date.now() };
+  setSentMap(map);
+}
+function clearSent(){
+  localStorage.removeItem(SENT_KEY);
+}
+
+/* ==========================
+   PARSE DESCRIPTION: "Clé: valeur"
+========================== */
+function parseKeyValueLines(text){
+  const out = {};
+  if(!text) return out;
+  const lines = text.split(/\r?\n/);
+  for(const line of lines){
+    const m = line.match(/^\s*([^:]{2,40})\s*:\s*(.+?)\s*$/);
+    if(!m) continue;
+    const key = m[1].trim().toLowerCase();
+    const val = m[2].trim();
+    out[key] = val;
+  }
+  return out;
+}
+function extractPhoneFromEvent(ev){
+  // 1) description key-values
+  const kv = parseKeyValueLines(ev.description || "");
+  const candidates = [
+    kv["téléphone"], kv["telephone"], kv["tel"], kv["phone"], kv["mobile"]
+  ].filter(Boolean);
+
+  // 2) fallback: search any phone-like pattern in description
+  if(candidates.length === 0 && ev.description){
+    const m = ev.description.match(/(\+?\d[\d\s().-]{7,}\d)/);
+    if(m) candidates.push(m[1]);
+  }
+
+  const phone = normPhone(candidates[0] || "");
+  return phone;
+}
+
+/* ==========================
+   TEMPLATE SMS
+========================== */
+function buildSmsText({prenom, dateObj, hhmm}){
+  const dayName = frDayName(dateObj);
+  const dayNum = pad2(dateObj.getDate());
+  const monthName = frMonthName(dateObj);
+
+  return (
+`Bonjour ${prenom ? (prenom + ',') : ''}
+
+Je vous confirme notre rendez-vous ce ${dayName} ${dayNum} ${monthName} à ${hhmm}
+
+Le cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan.
+(Rez de chaussée, à droite).
+Un parking gratuit se trouve à 50 mètres, juste en face du parc des sports.
+
+Bien cordialement,
+Damien Leignel
+Psychopraticien, Hypnose, PNL, EMDR, TCC, Analyse Transactionnelle & Coaching`
+  ).trim();
+}
+
+/* ==========================
+   GOOGLE AUTH (GIS) + TOKEN
+========================== */
+let tokenClient = null;
+let accessToken = "";
+let eventsCache = []; // loaded events for picked day
+
+function setAuthStatus(msg){
+  document.getElementById("authStatus").textContent = msg;
+}
+
+function ensureTokenClient(){
+  if(tokenClient) return;
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: OAUTH_CLIENT_ID,
+    scope: SCOPES,
+    callback: (resp) => {
+      if(resp && resp.access_token){
+        accessToken = resp.access_token;
+        setAuthStatus("Connecté.");
+      } else {
+        setAuthStatus("Connexion refusée.");
+      }
+    }
+  });
+}
+
+function connect(){
+  ensureTokenClient();
+  tokenClient.requestAccessToken({ prompt: "consent" });
+}
+
+function disconnect(){
+  accessToken = "";
+  setAuthStatus("Non connecté.");
+}
+
+/* ==========================
+   GOOGLE CALENDAR API CALLS
+========================== */
+async function fetchJson(url){
+  const res = await fetch(url, {
+    headers: { "Authorization": "Bearer " + accessToken }
+  });
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok){
+    const msg = data?.error?.message || ("Erreur HTTP " + res.status);
+    throw new Error(msg);
+  }
+  return data;
+}
+
+function dayRange(dateStr){
+  // dateStr: YYYY-MM-DD
+  const start = new Date(dateStr + "T00:00:00");
+  const end = new Date(dateStr + "T23:59:59");
+  // to RFC3339 with timezone offset
+  return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+}
+
+async function loadEventsForDate(dateStr){
+  if(!accessToken) throw new Error("Vous devez d’abord vous connecter.");
+  const { timeMin, timeMax } = dayRange(dateStr);
+
+  // primary calendar events
+  const url =
+    `${CAL_API}/calendars/primary/events?` +
+    new URLSearchParams({
+      timeMin,
+      timeMax,
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "250"
+    }).toString();
+
+  const data = await fetchJson(url);
+  const items = Array.isArray(data.items) ? data.items : [];
+
+  // normalize
+  const out = items.map(ev => {
+    const startISO = ev.start?.dateTime || (ev.start?.date ? ev.start.date + "T00:00:00Z" : null);
+    const endISO = ev.end?.dateTime || (ev.end?.date ? ev.end.date + "T00:00:00Z" : null);
+    const start = startISO ? new Date(startISO) : null;
+    const end = endISO ? new Date(endISO) : null;
+
+    // ignore all-day events by default (often "Blocage")
+    const isAllDay = !!ev.start?.date && !ev.start?.dateTime;
+
+    // prenom: from "RDV Nom" or parse "Prénom:" in description
+    const kv = parseKeyValueLines(ev.description || "");
+    const prenom = kv["prénom"] || kv["prenom"] || "";
+
+    const phone = extractPhoneFromEvent(ev);
+
+    return {
+      id: ev.id,
+      summary: ev.summary || "(Sans titre)",
+      description: ev.description || "",
+      start,
+      end,
+      isAllDay,
+      prenom,
+      phone
+    };
+  });
+
+  // Filter: keep timed events only
+  return out.filter(e => e.start && e.end && !e.isAllDay);
+}
+
+/* ==========================
+   UI: VIEW 1 (pick)
+========================== */
+const rdvListEl = document.getElementById("rdvList");
+const loadInfoEl = document.getElementById("loadInfo");
+const btnToSend = document.getElementById("btnToSend");
+
+let selectedIds = new Set();
+
+function formatWhen(e){
+  const d = e.start;
+  const date = `${frDayName(d)} ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
+  const hhmmStart = `${pad2(d.getHours())}h${pad2(d.getMinutes())}`;
+  const hhmmEnd = `${pad2(e.end.getHours())}h${pad2(e.end.getMinutes())}`;
+  return `${date} ${hhmmStart} → ${hhmmEnd}`;
+}
+
+function updateContinueBtn(){
+  const n = selectedIds.size;
+  btnToSend.disabled = (n === 0);
+  btnToSend.textContent = `Continuer (${n} sélection${n>1?"s":""})`;
+}
+
+function renderEventsList(events){
+  selectedIds = new Set();
+  updateContinueBtn();
+
+  rdvListEl.innerHTML = "";
+  if(!events.length){
+    rdvListEl.innerHTML = `<div class="muted">Aucun rendez-vous trouvé pour cette date.</div>`;
+    return;
+  }
+
+  for(const e of events){
+    const sent = isSent(e.id);
+    const hasPhone = !!e.phone;
+
+    const el = document.createElement("div");
+    el.className = "item";
+
+    el.innerHTML = `
+      <div class="itemLeft">
+        <input type="checkbox" class="pickBox" data-id="${escapeHtml(e.id)}" ${sent ? "disabled" : ""} ${!hasPhone ? "disabled" : ""} />
+        <div class="itemMain">
+          <div class="line1">${escapeHtml(e.summary)}</div>
+          <div class="line2">${escapeHtml(formatWhen(e))} · ${hasPhone ? ("Tel " + escapeHtml(e.phone)) : "Téléphone non trouvé"}</div>
+          ${!hasPhone ? `<div class="err">Téléphone non trouvé. Ajoutez dans la description : Téléphone: 06XXXXXXXX</div>` : ``}
+        </div>
+      </div>
+      <div>
+        ${sent ? `<span class="badgeSent">Déjà envoyé</span>` : ``}
+      </div>
+    `;
+    rdvListEl.appendChild(el);
+  }
+
+  rdvListEl.querySelectorAll(".pickBox").forEach(cb => {
+    cb.addEventListener("change", (ev) => {
+      const id = ev.target.dataset.id;
+      if(ev.target.checked) selectedIds.add(id);
+      else selectedIds.delete(id);
+      updateContinueBtn();
+    });
+  });
+}
+
+/* ==========================
+   UI: VIEW 2 (send)
+========================== */
+const viewPick = document.getElementById("viewPick");
+const viewSend = document.getElementById("viewSend");
+const sendListEl = document.getElementById("sendList");
+const sendSubtitleEl = document.getElementById("sendSubtitle");
+const sendProgressEl = document.getElementById("sendProgress");
+const btnOpenSms = document.getElementById("btnOpenSms");
+const btnMarkSent = document.getElementById("btnMarkSent");
+const btnSkip = document.getElementById("btnSkip");
+
+let sendQueue = [];
+let sendIndex = 0;
+
+function showPick(){
+  viewSend.classList.add("hidden");
+  viewPick.classList.remove("hidden");
+}
+function showSend(){
+  viewPick.classList.add("hidden");
+  viewSend.classList.remove("hidden");
+}
+
+function currentSender(){
+  const sel = document.getElementById("senderSelect").value;
+  if(sel === "__custom__"){
+    return document.getElementById("customSender").value.trim() || "06 69 53 77 91";
+  }
+  return sel;
+}
+
+function updateSendUI(){
+  const total = sendQueue.length;
+  const cur = sendQueue[sendIndex];
+
+  sendSubtitleEl.textContent = `Sélection : ${total} rendez-vous`;
+  sendProgressEl.textContent = total ? `SMS ${sendIndex+1}/${total}` : "Aucun SMS.";
+
+  sendListEl.innerHTML = "";
+  for(let i=0;i<sendQueue.length;i++){
+    const e = sendQueue[i];
+    const active = (i===sendIndex);
+    const el = document.createElement("div");
+    el.className = "item";
+    el.style.opacity = active ? "1" : ".55";
+    el.innerHTML = `
+      <div class="itemMain">
+        <div class="line1">${escapeHtml(e.summary)}</div>
+        <div class="line2">${escapeHtml(formatWhen(e))} · Tel ${escapeHtml(e.phone)}</div>
+      </div>
+      <div>${active ? `<span class="badgeSent">En cours</span>` : ``}</div>
+    `;
+    sendListEl.appendChild(el);
+  }
+
+  btnOpenSms.disabled = !cur;
+  btnMarkSent.disabled = !cur;
+  btnSkip.disabled = !cur;
+}
+
+function gotoSendView(){
+  const ids = Array.from(selectedIds);
+  sendQueue = eventsCache.filter(e => ids.includes(e.id));
+  sendIndex = 0;
+
+  if(!sendQueue.length){
+    alert("Aucun rendez-vous sélectionné.");
+    return;
+  }
+  showSend();
+  updateSendUI();
+}
+
+function openSmsForCurrent(){
+  const ev = sendQueue[sendIndex];
+  if(!ev) return;
+
+  const start = ev.start;
+  const hhmm = `${pad2(start.getHours())}:${pad2(start.getMinutes())}`;
+
+  // prenom: priorité "Prénom:" dans description, sinon tentative depuis titre
+  let prenom = ev.prenom;
+  if(!prenom){
+    // exemple "RDV3 Françoise" -> prend le dernier mot (pas parfait, mais utile)
+    const parts = (ev.summary || "").trim().split(/\s+/);
+    if(parts.length) prenom = parts[parts.length-1];
+  }
+
+  const body = buildSmsText({ prenom, dateObj: start, hhmm });
+  // Note: on ne peut pas forcer le "from" dans l'app SMS; on conserve le choix comme info interne.
+  const href = smsHref(ev.phone, body);
+
+  window.location.href = href;
+}
+
+function markCurrentSent(){
+  const ev = sendQueue[sendIndex];
+  if(!ev) return;
+  markSent(ev.id);
+
+  // move next
+  sendIndex++;
+  if(sendIndex >= sendQueue.length){
+    alert("Terminé. Tous les SMS sélectionnés ont été marqués comme envoyés.");
+    // refresh list status
+    showPick();
+    renderEventsList(eventsCache);
+    return;
+  }
+  updateSendUI();
+}
+
+function skipCurrent(){
+  sendIndex++;
+  if(sendIndex >= sendQueue.length){
+    showPick();
+    renderEventsList(eventsCache);
+    return;
+  }
+  updateSendUI();
+}
+
+/* ==========================
+   INIT + EVENTS
+========================== */
+(function init(){
+  // Date par défaut = demain
+  const d = new Date();
+  d.setDate(d.getDate()+1);
+  document.getElementById("datePick").value = toLocalISO(d);
+
+  // Sender restore
+  const savedSender = localStorage.getItem(SENDER_KEY);
+  if(savedSender){
+    if(savedSender.startsWith("__custom__:")){
+      document.getElementById("senderSelect").value = "__custom__";
+      document.getElementById("customSenderWrap").classList.remove("hidden");
+      document.getElementById("customSender").value = savedSender.replace("__custom__:", "");
+    } else {
+      // if not in list, set custom
+      const opts = Array.from(document.getElementById("senderSelect").options).map(o => o.value);
+      if(opts.includes(savedSender)){
+        document.getElementById("senderSelect").value = savedSender;
+      } else {
+        document.getElementById("senderSelect").value = "__custom__";
+        document.getElementById("customSenderWrap").classList.remove("hidden");
+        document.getElementById("customSender").value = savedSender;
+      }
+    }
+  }
+
+  // Buttons
+  document.getElementById("btnConnect").addEventListener("click", () => connect());
+  document.getElementById("btnDisconnect").add
