@@ -172,24 +172,20 @@ async function loadEventsForDate(dateStr){
   const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
   const data = await res.json();
   return (data.items || []).filter(ev => ev.start.dateTime).map(ev => {
-    // Nettoyage robuste des balises ET des entités HTML bizarres
     let cleanText = (ev.description || "")
       .replace(/<br\s*\/?>/gi, '\n')
       .replace(/<[^>]+>/g, ' ')
       .replace(/&nbsp;/g, ' ')
       .replace(/&emsp;/g, ' ')
       .replace(/&thinsp;/g, ' ')
-      .replace(/&zwnj;/g, '')
       .replace(/&#39;/g, "'")
       .replace(/&quot;/g, '"')
       .replace(/&amp;/g, '&');
       
     let prenom = "", phone = "";
-    // Regex affinée pour s'arrêter avant le prochain champ (Nom:)
     const pm = cleanText.match(/Pr[eé]nom\s*:\s*([^& \n\r\t]+)/i);
     if(pm) prenom = pm[1].trim();
     else { const tm = (ev.summary || "").match(/RDV\s+([A-ZÀ-Ÿa-zà-ÿ-]+)/i); if(tm) prenom = tm[1].trim(); }
-    
     const phm = cleanText.match(/(\+?\d[\d\s().-]{7,}\d)/);
     if(phm) phone = normPhone(phm[1]);
     return { id: ev.id, summary: ev.summary || "(Sans titre)", start: new Date(ev.start.dateTime), prenom, phone };
@@ -234,7 +230,8 @@ function updateSendUI(){
 
 document.getElementById("btnOpenSms").onclick = () => { 
   const ev = sendQueue[sendIndex];
-  const hhmm = pad2(ev.start.getHours())+"h"+pad2(ev.start.getMinutes())+".";
+  // Correction ici : suppression du point automatique pour éviter le double point
+  const hhmm = pad2(ev.start.getHours())+"h"+pad2(ev.start.getMinutes());
   window.location.href = `sms:${ev.phone}${/iPhone|iPad|iPod/i.test(navigator.userAgent)?'&':'?'}body=${encodeURIComponent(buildSmsText({ prenom: ev.prenom, dateObj: ev.start, hhmm }))}`;
 };
 document.getElementById("btnMarkSent").onclick = () => { markSent(sendQueue[sendIndex].id); nextSms(); };
