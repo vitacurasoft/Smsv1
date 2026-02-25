@@ -4,6 +4,11 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>SMS automatique</title>
+  
+  <link rel="icon" type="image/png" href="logo_sms_automatique_512~2.png">
+  <link rel="apple-touch-icon" href="logo_sms_automatique_512~2.png">
+  <meta name="theme-color" content="#2563eb">
+
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root { 
@@ -42,12 +47,7 @@
       gap: 8px;
     }
 
-    .header-left, .header-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
+    .header-left, .header-right { display: flex; align-items: center; gap: 8px; }
     .header-text { font-size: 12px; color: var(--muted); display: none; }
     @media (min-width: 380px) { .header-text { display: inline; } }
 
@@ -66,13 +66,7 @@
 
     .wrap { max-width: 600px; margin: 0 auto; padding: 12px 12px 80px; }
 
-    .title-row {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    
+    .title-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
     h1 { font-size: 18px; font-weight: 600; color: var(--text); }
 
     .date-nav {
@@ -143,13 +137,7 @@
     }
 
     .badge-group { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
-    .badge { 
-      padding: 2px 6px; 
-      border-radius: 4px; 
-      font-size: 10px; 
-      font-weight: 600; 
-      text-transform: uppercase;
-    }
+    .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
     .badge-sent { background: #dcfce7; color: #166534; }
     .badge-error { background: #fee2e2; color: #991b1b; }
 
@@ -170,12 +158,7 @@
     .btn.secondary:active:not(:disabled) { background: var(--stroke); }
     .btn:disabled { background: var(--stroke); color: #94a3b8; cursor: not-allowed; }
 
-    .footer-actions {
-      margin-top: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
+    .footer-actions { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
     .footer-actions .btn-main { padding: 12px; font-size: 15px; font-weight: 600; }
     .footer-actions .btn-reset { background: transparent; color: var(--muted); border: none; text-decoration: underline; font-size: 12px; margin: 0 auto; padding: 4px; cursor: pointer; }
 
@@ -228,7 +211,7 @@
     
     <div id="viewPick">
       <div class="title-row">
-        <h1>Confirmation des rendez-vous</h1>
+        <h1>Confirmation des rendez-vous par SMS</h1>
         <div class="date-nav">
           <button class="btn secondary" id="btnPrevDay">&lt;</button>
           <input id="datePick" type="date" />
@@ -239,7 +222,7 @@
       <div class="filter-row">
         <label>
           <input type="checkbox" id="chkShowNoPhone">
-          Afficher les rendez-vous sans téléphone
+          Afficher sans téléphone
         </label>
         <button class="btn secondary" id="btnEditSms" style="padding: 4px 10px; font-size: 12px;">Modifier le SMS</button>
       </div>
@@ -252,7 +235,7 @@
       
       <div class="footer-actions">
         <button class="btn btn-main" id="btnToSend" disabled>Continuer (0)</button>
-        <button class="btn-reset" id="btnClearSent">Réinitialiser l'historique de cette date</button>
+        <button class="btn-reset" id="btnClearSent">Réinitialiser cette date</button>
       </div>
     </div>
 
@@ -277,16 +260,16 @@
 
   <div id="smsModal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h2 style="font-size: 18px; margin-bottom: 8px;">Modifier le modèle SMS</h2>
-      <p style="font-size: 12px; color: var(--muted); margin-bottom: 16px;">
-        Variables reconnues : <strong>[PRENOM]</strong>, <strong>[JOUR]</strong>, <strong>[DATE]</strong>, <strong>[MOIS]</strong>, <strong>[HEURE]</strong>
+      <h2 style="font-size: 18px; margin-bottom: 8px;">Modèle SMS</h2>
+      <p style="font-size: 11px; color: var(--muted); margin-bottom: 12px;">
+        Mots-clés : <strong>[PRENOM]</strong>, <strong>[JOUR]</strong>, <strong>[DATE]</strong>, <strong>[MOIS]</strong>, <strong>[HEURE]</strong>
       </p>
-      <textarea id="smsTemplateInput" style="height: 220px; margin-bottom: 16px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+      <textarea id="smsTemplateInput" style="height: 200px; margin-bottom: 16px; font-family: inherit; font-size: 13px;"></textarea>
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
         <button class="btn secondary" id="btnCancelSms">Annuler</button>
         <button class="btn" id="btnSaveSms">Enregistrer</button>
       </div>
-      <button id="btnResetSms" style="margin-top: 16px; background: none; border: none; color: var(--danger); font-size: 12px; text-decoration: underline; cursor: pointer; text-align: center; width: 100%;">Réinitialiser le modèle par défaut</button>
+      <button id="btnResetSms" style="margin-top: 16px; background: none; border: none; color: var(--danger); font-size: 11px; text-decoration: underline; cursor: pointer;">Réinitialiser par défaut</button>
     </div>
   </div>
 
@@ -295,16 +278,9 @@ const OAUTH_CLIENT_ID = "962693468865-fpumnvpt5517nfs21kobao8l2ejni1qk.apps.goog
 const SCOPES = "https://www.googleapis.com/auth/calendar.readonly openid email profile";
 const CAL_API = "https://www.googleapis.com/calendar/v3";
 
-let tokenClient = null;
-let accessToken = "";
-let eventsCache = [];
-let selectedIds = new Set();
-let sendQueue = [];
-let sendIndex = 0;
+let tokenClient = null, accessToken = "", eventsCache = [], selectedIds = new Set(), sendQueue = [], sendIndex = 0;
 
-const SENT_KEY = "smsv1_sent_map_v1";
-const SENDER_KEY = "smsv1_sender_v1";
-const SMS_TEMPLATE_KEY = "smsv1_template_v1";
+const SENT_KEY = "smsv1_sent_map_v1", SENDER_KEY = "smsv1_sender_v1", SMS_TEMPLATE_KEY = "smsv1_template_v1";
 
 const DEFAULT_SMS_TEMPLATE = `Bonjour [PRENOM],\n\nJe vous confirme notre rendez-vous ce [JOUR] [DATE] [MOIS] à [HEURE].\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`;
 
@@ -321,37 +297,19 @@ function markSent(eventId){ const map = getSentMap(); map[eventId] = { at: Date.
 
 function clearSentForCurrentDate(){
   const map = getSentMap();
-  let hasChanges = false;
-  eventsCache.forEach(e => {
-    if(map[e.id]){
-      delete map[e.id];
-      hasChanges = true;
-    }
-  });
-  if(hasChanges) setSentMap(map);
+  eventsCache.forEach(e => delete map[e.id]);
+  setSentMap(map);
 }
 
-function getSmsTemplate() {
-  return localStorage.getItem(SMS_TEMPLATE_KEY) || DEFAULT_SMS_TEMPLATE;
-}
+function getSmsTemplate() { return localStorage.getItem(SMS_TEMPLATE_KEY) || DEFAULT_SMS_TEMPLATE; }
 
 function buildSmsText({prenom, dateObj, hhmm}){
   let text = getSmsTemplate();
-  
-  if(prenom) {
-    text = text.replace(/\[PRENOM\]/g, prenom);
-  } else {
-    text = text.replace(/\[PRENOM\]/g, "");
-    text = text.replace(/Bonjour ,/g, "Bonjour,");
-    text = text.replace(/Bonjour  ,/g, "Bonjour,");
+  if(prenom) text = text.replace(/\[PRENOM\]/g, prenom);
+  else {
+    text = text.replace(/\[PRENOM\],/g, "").replace(/Bonjour ,/g, "Bonjour,").replace(/Bonjour  ,/g, "Bonjour,");
   }
-  
-  text = text.replace(/\[JOUR\]/g, frDayName(dateObj));
-  text = text.replace(/\[DATE\]/g, pad2(dateObj.getDate()));
-  text = text.replace(/\[MOIS\]/g, frMonthName(dateObj));
-  text = text.replace(/\[HEURE\]/g, hhmm);
-  
-  return text.trim();
+  return text.replace(/\[JOUR\]/g, frDayName(dateObj)).replace(/\[DATE\]/g, pad2(dateObj.getDate())).replace(/\[MOIS\]/g, frMonthName(dateObj)).replace(/\[HEURE\]/g, hhmm).trim();
 }
 
 function updateAuthUI(isConnected) {
@@ -364,287 +322,107 @@ function updateAuthUI(isConnected) {
 
 async function fetchAndRenderEvents() {
   if(!accessToken) return;
-  
   const list = document.getElementById("rdvList");
-  list.innerHTML = '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Chargement en cours...</div>';
-  
+  list.innerHTML = '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Chargement...</div>';
   try {
     eventsCache = await loadEventsForDate(document.getElementById("datePick").value);
     renderEventsList(eventsCache);
-  } catch(e) { 
-    list.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--danger); font-size: 13px;">${e.message}</div>`;
-  }
+  } catch(e) { list.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--danger); font-size: 13px;">${e.message}</div>`; }
 }
 
 function ensureTokenClient(){
   if(tokenClient) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: OAUTH_CLIENT_ID,
-    scope: SCOPES,
+    client_id: OAUTH_CLIENT_ID, scope: SCOPES,
     callback: (resp) => {
       if(resp && resp.access_token){
         accessToken = resp.access_token;
-        const expiry = Date.now() + (3600 * 1000) - 60000;
         localStorage.setItem("gcal_access_token", accessToken);
-        localStorage.setItem("gcal_token_expiry", expiry.toString());
-        updateAuthUI(true);
-        fetchAndRenderEvents();
+        localStorage.setItem("gcal_token_expiry", (Date.now() + 3540000).toString());
+        updateAuthUI(true); fetchAndRenderEvents();
       }
     }
   });
 }
 
 function checkAutoConnect() {
-  const savedToken = localStorage.getItem("gcal_access_token");
-  const savedExpiry = localStorage.getItem("gcal_token_expiry");
-  
-  if(savedToken && savedExpiry && Date.now() < parseInt(savedExpiry)){
-    accessToken = savedToken;
-    updateAuthUI(true);
-    fetchAndRenderEvents();
-  }
+  const t = localStorage.getItem("gcal_access_token"), e = localStorage.getItem("gcal_token_expiry");
+  if(t && e && Date.now() < parseInt(e)){ accessToken = t; updateAuthUI(true); fetchAndRenderEvents(); }
 }
 
 async function loadEventsForDate(dateStr){
-  const start = new Date(dateStr + "T00:00:00").toISOString();
-  const end = new Date(dateStr + "T23:59:59").toISOString();
-  
-  const url = `${CAL_API}/calendars/primary/events?timeMin=${start}&timeMax=${end}&singleEvents=true&orderBy=startTime`;
+  const url = `${CAL_API}/calendars/primary/events?timeMin=${new Date(dateStr + "T00:00:00").toISOString()}&timeMax=${new Date(dateStr + "T23:59:59").toISOString()}&singleEvents=true&orderBy=startTime`;
   const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
-  
-  if(res.status === 401) {
-    localStorage.removeItem("gcal_access_token");
-    localStorage.removeItem("gcal_token_expiry");
-    accessToken = "";
-    updateAuthUI(false);
-    throw new Error("Session expirée. Veuillez vous reconnecter.");
-  }
-
+  if(res.status === 401) { updateAuthUI(false); throw new Error("Session expirée."); }
   const data = await res.json();
-  
   return (data.items || []).filter(ev => ev.start.dateTime).map(ev => {
-    let desc = ev.description || "";
-    let cleanText = desc.replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<\/div>/gi, '\n').replace(/<\/li>/gi, '\n');
-    cleanText = cleanText.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-
-    let phone = "";
-    let prenom = "";
-
-    const prenomMatch = cleanText.match(/Pr[eé]nom\s*:\s*([^\n\r]+)/i);
-    if(prenomMatch) {
-      prenom = prenomMatch[1].trim();
-    } else {
-      const titleMatch = (ev.summary || "").match(/RDV\s+([A-ZÀ-Ÿa-zà-ÿ-]+)/i);
-      if(titleMatch) prenom = titleMatch[1].trim();
-    }
-
-    const phoneMatch = cleanText.match(/(?:T[eé]l[eé]phone|Tel|Mobile|Phone)\s*:\s*(\+?\d[\d\s().-]{7,}\d)/i);
-    if(phoneMatch) {
-      phone = normPhone(phoneMatch[1]);
-    } else {
-      const fallbackMatch = cleanText.match(/(\+?\d[\d\s().-]{7,}\d)/);
-      if(fallbackMatch) phone = normPhone(fallbackMatch[1]);
-    }
-
-    return {
-      id: ev.id,
-      summary: ev.summary || "(Sans titre)",
-      start: new Date(ev.start.dateTime),
-      end: new Date(ev.end.dateTime),
-      prenom: prenom,
-      phone: phone
-    };
+    let cleanText = (ev.description || "").replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+    let phone = "", prenom = "";
+    const pm = cleanText.match(/Pr[eé]nom\s*:\s*([^\n\r]+)/i);
+    if(pm) prenom = pm[1].trim();
+    else { const tm = (ev.summary || "").match(/RDV\s+([A-ZÀ-Ÿa-zà-ÿ-]+)/i); if(tm) prenom = tm[1].trim(); }
+    const phm = cleanText.match(/(?:T[eé]l[eé]phone|Tel|Mobile|Phone)\s*:\s*(\+?\d[\d\s().-]{7,}\d)/i);
+    if(phm) phone = normPhone(phm[1]);
+    else { const fbm = cleanText.match(/(\+?\d[\d\s().-]{7,}\d)/); if(fbm) phone = normPhone(fbm[1]); }
+    return { id: ev.id, summary: ev.summary || "(Sans titre)", start: new Date(ev.start.dateTime), prenom, phone };
   });
 }
 
 function renderEventsList(events){
-  const list = document.getElementById("rdvList");
-  const showNoPhone = document.getElementById("chkShowNoPhone").checked;
-  
-  const filteredEvents = events.filter(e => showNoPhone || !!e.phone);
-  
-  list.innerHTML = filteredEvents.length ? "" : '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Aucun rendez-vous à afficher.</div>';
-  
+  const list = document.getElementById("rdvList"), showNoPhone = document.getElementById("chkShowNoPhone").checked;
+  const filtered = events.filter(e => showNoPhone || !!e.phone);
+  list.innerHTML = filtered.length ? "" : '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Aucun rendez-vous.</div>';
   selectedIds.clear();
-
-  filteredEvents.forEach(e => {
-    const sent = isSent(e.id);
-    const hasPhone = !!e.phone;
-    
-    const shouldBeChecked = hasPhone && !sent;
-    if (shouldBeChecked) selectedIds.add(e.id);
-
-    const hhmm = `${pad2(e.start.getHours())}h${pad2(e.start.getMinutes())}`;
-    const prenomAffiche = e.prenom ? e.prenom : "Prénom non identifié";
-    
+  filtered.forEach(e => {
+    const sent = isSent(e.id), hasPhone = !!e.phone, checked = hasPhone && !sent;
+    if (checked) selectedIds.add(e.id);
     const div = document.createElement("div");
     div.className = `item ${(!hasPhone || sent) ? 'disabled' : ''}`;
-    div.innerHTML = `
-      <input type="checkbox" class="pickBox" data-id="${e.id}" 
-        ${(!hasPhone || sent) ? 'disabled' : ''} 
-        ${shouldBeChecked ? 'checked' : ''}>
-      <div class="item-time">${hhmm}</div>
-      <div class="item-info">
-        <div class="item-name">${e.summary}</div>
-        <div class="item-meta">${hasPhone ? e.phone : 'Tel manquant'} • ${prenomAffiche}</div>
-      </div>
-      <div class="badge-group">
-        ${sent ? '<span class="badge badge-sent">Envoyé</span>' : ''}
-        ${!hasPhone ? '<span class="badge badge-error">Sans Tel</span>' : ''}
-      </div>
-    `;
+    div.innerHTML = `<input type="checkbox" class="pickBox" data-id="${e.id}" ${(!hasPhone || sent) ? 'disabled' : ''} ${checked ? 'checked' : ''}>
+      <div class="item-time">${pad2(e.start.getHours())}h${pad2(e.start.getMinutes())}</div>
+      <div class="item-info"><div class="item-name">${e.summary}</div><div class="item-meta">${hasPhone ? e.phone : 'Tel manquant'} • ${e.prenom || "Prénom inconnu"}</div></div>
+      <div class="badge-group">${sent ? '<span class="badge badge-sent">Envoyé</span>' : ''}${!hasPhone ? '<span class="badge badge-error">Sans Tel</span>' : ''}</div>`;
     list.appendChild(div);
   });
-
   updateBtnState();
-
-  list.querySelectorAll(".pickBox").forEach(cb => {
-    cb.addEventListener("change", (ev) => {
-      if(ev.target.checked) selectedIds.add(ev.target.dataset.id);
-      else selectedIds.delete(ev.target.dataset.id);
-      updateBtnState();
-    });
-  });
+  list.querySelectorAll(".pickBox").forEach(cb => cb.onchange = (ev) => { if(ev.target.checked) selectedIds.add(ev.target.dataset.id); else selectedIds.delete(ev.target.dataset.id); updateBtnState(); });
 }
 
-function updateBtnState(){
-  const btn = document.getElementById("btnToSend");
-  btn.disabled = selectedIds.size === 0;
-  btn.textContent = `Continuer (${selectedIds.size})`;
-}
+function updateBtnState(){ const btn = document.getElementById("btnToSend"); btn.disabled = selectedIds.size === 0; btn.textContent = `Continuer (${selectedIds.size})`; }
 
-document.getElementById("chkShowNoPhone").addEventListener("change", () => renderEventsList(eventsCache));
-document.getElementById("datePick").addEventListener("change", fetchAndRenderEvents);
-
-function modifierDate(jours) {
-  const inputDate = document.getElementById("datePick");
-  const d = new Date(inputDate.value);
-  if (isNaN(d.getTime())) return;
-  d.setDate(d.getDate() + jours);
-  inputDate.value = toLocalISO(d);
-  fetchAndRenderEvents();
-}
-
+document.getElementById("chkShowNoPhone").onchange = () => renderEventsList(eventsCache);
+document.getElementById("datePick").onchange = fetchAndRenderEvents;
+function modifierDate(jours) { const d = new Date(document.getElementById("datePick").value); d.setDate(d.getDate() + jours); document.getElementById("datePick").value = toLocalISO(d); fetchAndRenderEvents(); }
 document.getElementById("btnPrevDay").onclick = () => modifierDate(-1);
 document.getElementById("btnNextDay").onclick = () => modifierDate(1);
-
 document.getElementById("btnConnect").onclick = () => { ensureTokenClient(); tokenClient.requestAccessToken({prompt: ''}); };
-document.getElementById("btnDisconnect").onclick = () => { 
-  accessToken = ""; 
-  localStorage.removeItem("gcal_access_token");
-  localStorage.removeItem("gcal_token_expiry");
-  updateAuthUI(false);
-  document.getElementById("rdvList").innerHTML = '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Sélectionnez une date ou connectez-vous.</div>';
-};
-
-document.getElementById("btnToSend").onclick = () => {
-  sendQueue = eventsCache.filter(e => selectedIds.has(e.id));
-  sendIndex = 0;
-  document.getElementById("viewPick").classList.add("hidden");
-  document.getElementById("viewSend").classList.remove("hidden");
-  updateSendUI();
-};
+document.getElementById("btnDisconnect").onclick = () => { accessToken = ""; localStorage.clear(); updateAuthUI(false); document.getElementById("rdvList").innerHTML = "Connectez-vous."; };
+document.getElementById("btnToSend").onclick = () => { sendQueue = eventsCache.filter(e => selectedIds.has(e.id)); sendIndex = 0; document.getElementById("viewPick").classList.add("hidden"); document.getElementById("viewSend").classList.remove("hidden"); updateSendUI(); };
 
 function updateSendUI(){
   const cur = sendQueue[sendIndex];
-  document.getElementById("sendProgress").textContent = `Étape ${sendIndex + 1} sur ${sendQueue.length}`;
-  const prenomAffiche = cur.prenom ? cur.prenom : "Prénom manuel";
-  
-  document.getElementById("sendList").innerHTML = `
-    <div class="item" style="border-color: var(--primary); background: #eff6ff;">
-      <div class="item-time" style="background: white;">${pad2(cur.start.getHours())}h${pad2(cur.start.getMinutes())}</div>
-      <div class="item-info">
-        <div class="item-name">${cur.summary}</div>
-        <div class="item-meta">${cur.phone} • ${prenomAffiche}</div>
-      </div>
-    </div>
-  `;
+  document.getElementById("sendProgress").textContent = `SMS ${sendIndex + 1} / ${sendQueue.length}`;
+  document.getElementById("sendList").innerHTML = `<div class="item" style="border-color: var(--primary); background: #eff6ff;"><div class="item-time" style="background: white;">${pad2(cur.start.getHours())}h${pad2(cur.start.getMinutes())}</div><div class="item-info"><div class="item-name">${cur.summary}</div><div class="item-meta">${cur.phone} • ${cur.prenom || "Prénom manuel"}</div></div></div>`;
 }
 
-document.getElementById("btnOpenSms").onclick = () => {
-  const ev = sendQueue[sendIndex];
-  const heureSms = `${pad2(ev.start.getHours())}h${pad2(ev.start.getMinutes())}`;
-  const body = buildSmsText({ prenom: ev.prenom || "", dateObj: ev.start, hhmm: heureSms });
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-  window.location.href = `sms:${ev.phone}${isIOS ? '&' : '?'}body=${encodeURIComponent(body)}`;
-};
-
+document.getElementById("btnOpenSms").onclick = () => { const ev = sendQueue[sendIndex]; window.location.href = `sms:${ev.phone}${/iPhone|iPad|iPod/i.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(buildSmsText({ prenom: ev.prenom, dateObj: ev.start, hhmm: pad2(ev.start.getHours())+"h"+pad2(ev.start.getMinutes())+"." }))}`; };
 document.getElementById("btnMarkSent").onclick = () => { markSent(sendQueue[sendIndex].id); nextSms(); };
 document.getElementById("btnSkip").onclick = nextSms;
+function nextSms(){ sendIndex++; if(sendIndex >= sendQueue.length){ document.getElementById("viewSend").classList.add("hidden"); document.getElementById("viewPick").classList.remove("hidden"); renderEventsList(eventsCache); } else updateSendUI(); }
+document.getElementById("btnBack").onclick = () => { document.getElementById("viewSend").classList.add("hidden"); document.getElementById("viewPick").classList.remove("hidden"); };
+document.getElementById("btnClearSent").onclick = () => { if(confirm("Réinitialiser cette date ?")) { clearSentForCurrentDate(); renderEventsList(eventsCache); } };
 
-function nextSms(){
-  sendIndex++;
-  if(sendIndex >= sendQueue.length){
-    alert("Terminé ! Toutes les confirmations ont été traitées.");
-    document.getElementById("viewSend").classList.add("hidden");
-    document.getElementById("viewPick").classList.remove("hidden");
-    renderEventsList(eventsCache);
-  } else updateSendUI();
-}
+document.getElementById("btnEditSms").onclick = () => { document.getElementById("smsTemplateInput").value = getSmsTemplate(); document.getElementById("smsModal").classList.remove("hidden"); };
+document.getElementById("btnCancelSms").onclick = () => document.getElementById("smsModal").classList.add("hidden");
+document.getElementById("btnSaveSms").onclick = () => { localStorage.setItem(SMS_TEMPLATE_KEY, document.getElementById("smsTemplateInput").value); document.getElementById("smsModal").classList.add("hidden"); };
+document.getElementById("btnResetSms").onclick = () => { if(confirm("Réinitialiser ?")) document.getElementById("smsTemplateInput").value = DEFAULT_SMS_TEMPLATE; };
 
-document.getElementById("btnBack").onclick = () => {
-  document.getElementById("viewSend").classList.add("hidden");
-  document.getElementById("viewPick").classList.remove("hidden");
-};
-
-document.getElementById("btnClearSent").onclick = () => {
-  if(confirm("Voulez-vous vraiment réinitialiser les envois pour cette date uniquement ?")) { 
-    clearSentForCurrentDate(); 
-    renderEventsList(eventsCache); 
-  }
-};
-
-/* Gestion de la modale de modification du SMS */
-const modalSms = document.getElementById("smsModal");
-const inputSms = document.getElementById("smsTemplateInput");
-
-document.getElementById("btnEditSms").onclick = () => {
-  inputSms.value = getSmsTemplate();
-  modalSms.classList.remove("hidden");
-};
-
-document.getElementById("btnCancelSms").onclick = () => {
-  modalSms.classList.add("hidden");
-};
-
-document.getElementById("btnSaveSms").onclick = () => {
-  localStorage.setItem(SMS_TEMPLATE_KEY, inputSms.value);
-  modalSms.classList.add("hidden");
-};
-
-document.getElementById("btnResetSms").onclick = () => {
-  if(confirm("Voulez-vous revenir au texte par défaut ?")) {
-    inputSms.value = DEFAULT_SMS_TEMPLATE;
-  }
-};
-
-const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-document.getElementById("datePick").value = toLocalISO(tomorrow);
-
-const senderSelect = document.getElementById("senderSelect");
-const customInput = document.getElementById("customSender");
-const savedSender = localStorage.getItem(SENDER_KEY);
-
-if(savedSender){
-  if(savedSender.startsWith("__custom__:")){
-    senderSelect.value = "__custom__";
-    customInput.classList.remove("hidden");
-    customInput.value = savedSender.replace("__custom__:", "");
-  } else {
-    const opts = Array.from(senderSelect.options).map(o => o.value);
-    if(opts.includes(savedSender)) senderSelect.value = savedSender;
-  }
-}
-
-function persistSender(){
-  localStorage.setItem(SENDER_KEY, senderSelect.value === "__custom__" ? "__custom__:" + customInput.value.trim() : senderSelect.value);
-}
-
-senderSelect.onchange = (e) => { customInput.classList.toggle("hidden", e.target.value !== "__custom__"); persistSender(); };
-customInput.oninput = persistSender;
-
+const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
+const ss = document.getElementById("senderSelect"), ci = document.getElementById("customSender"), sv = localStorage.getItem(SENDER_KEY);
+if(sv){ if(sv.startsWith("__custom__:")){ ss.value = "__custom__"; ci.classList.remove("hidden"); ci.value = sv.replace("__custom__:", ""); } else ss.value = sv; }
+ss.onchange = () => { ci.classList.toggle("hidden", ss.value !== "__custom__"); localStorage.setItem(SENDER_KEY, ss.value === "__custom__" ? "__custom__:"+ci.value : ss.value); };
+ci.oninput = () => localStorage.setItem(SENDER_KEY, "__custom__:"+ci.value);
 setTimeout(checkAutoConnect, 100);
-
 </script>
 </body>
 </html>
