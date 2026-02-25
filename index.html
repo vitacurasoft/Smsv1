@@ -5,189 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>SMS automatique</title>
   
-  <link rel="icon" type="image/png" href="logo_sms_automatique_512~2.png">
-  <link rel="apple-touch-icon" href="logo_sms_automatique_512~2.png">
+  <link rel="icon" type="image/png" href="smslogo.png">
+  <link rel="apple-touch-icon" href="smslogo.png">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
 
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root { 
-      --bg: #f8fafc; 
-      --surface: #ffffff;
-      --primary: #2563eb; 
-      --primary-hover: #1d4ed8;
-      --text: #0f172a; 
-      --muted: #64748b; 
-      --stroke: #e2e8f0; 
-      --success: #10b981;
-      --danger: #ef4444;
+      --bg: #f8fafc; --surface: #ffffff; --primary: #2563eb; 
+      --primary-hover: #1d4ed8; --text: #0f172a; --muted: #64748b; 
+      --stroke: #e2e8f0; --success: #10b981; --danger: #ef4444;
     }
-
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { overflow-x: hidden; width: 100%; }
-
-    body { 
-      font-family: 'Inter', system-ui, -apple-system, sans-serif; 
-      background: var(--bg); 
-      color: var(--text); 
-      line-height: 1.4;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--stroke);
-      padding: 8px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      gap: 8px;
-    }
-
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; -webkit-font-smoothing: antialiased; }
+    header { background: var(--surface); border-bottom: 1px solid var(--stroke); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; gap: 8px; }
     .header-left, .header-right { display: flex; align-items: center; gap: 8px; }
-    .header-text { font-size: 12px; color: var(--muted); display: none; }
-    @media (min-width: 380px) { .header-text { display: inline; } }
-
-    select, input[type="text"], input[type="date"], textarea {
-      padding: 6px 8px;
-      border: 1px solid var(--stroke);
-      border-radius: 6px;
-      font-size: 13px;
-      outline: none;
-      background: #f1f5f9;
-      color: var(--text);
-    }
-    
-    select:focus, input:focus, textarea:focus { border-color: var(--primary); background: var(--surface); }
-    #customSender { max-width: 90px; }
-
+    select, input[type="text"], input[type="date"], textarea { padding: 6px 8px; border: 1px solid var(--stroke); border-radius: 6px; font-size: 13px; outline: none; background: #f1f5f9; color: var(--text); }
     .wrap { max-width: 600px; margin: 0 auto; padding: 12px 12px 80px; }
-
     .title-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
-    h1 { font-size: 18px; font-weight: 600; color: var(--text); }
-
-    .date-nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: var(--surface);
-      padding: 6px;
-      border-radius: 8px;
-      border: 1px solid var(--stroke);
-    }
+    h1 { font-size: 18px; font-weight: 600; }
+    .date-nav { display: flex; align-items: center; justify-content: space-between; background: var(--surface); padding: 6px; border-radius: 8px; border: 1px solid var(--stroke); }
     .date-nav input[type="date"] { border: none; background: transparent; font-weight: 600; flex: 1; text-align: center; }
-
-    .filter-row {
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .filter-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
-
+    .filter-row { font-size: 13px; color: var(--muted); margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     .list { display: flex; flex-direction: column; gap: 6px; }
-    
-    .item { 
-      background: var(--surface); 
-      border: 1px solid var(--stroke); 
-      border-radius: 8px; 
-      padding: 8px 10px; 
-      display: flex; 
-      align-items: center; 
-      gap: 10px; 
-    }
-    
-    .item:has(input[type="checkbox"]:checked) {
-      border-color: var(--primary);
-      background: #eff6ff;
-    }
-
+    .item { background: var(--surface); border: 1px solid var(--stroke); border-radius: 8px; padding: 8px 10px; display: flex; align-items: center; gap: 10px; }
+    .item:has(input[type="checkbox"]:checked) { border-color: var(--primary); background: #eff6ff; }
     .item.disabled { opacity: 0.55; background: transparent; }
-
-    .item-time { 
-      font-weight: 700; 
-      color: var(--primary); 
-      font-size: 14px;
-      background: #eff6ff;
-      padding: 4px 6px;
-      border-radius: 4px;
-      min-width: 48px;
-      text-align: center;
-    }
-    
-    .item.disabled .item-time { background: var(--stroke); color: var(--muted); }
-
+    .item-time { font-weight: 700; color: var(--primary); font-size: 14px; background: #eff6ff; padding: 4px 6px; border-radius: 4px; min-width: 48px; text-align: center; }
     .item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
     .item-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .item-meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    input[type="checkbox"] {
-      accent-color: var(--primary);
-      width: 18px;
-      height: 18px;
-      margin: 0;
-      flex-shrink: 0;
-    }
-
-    .badge-group { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
+    .item-meta { font-size: 12px; color: var(--muted); }
+    input[type="checkbox"] { accent-color: var(--primary); width: 18px; height: 18px; }
     .badge { padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
     .badge-sent { background: #dcfce7; color: #166534; }
-    .badge-error { background: #fee2e2; color: #991b1b; }
-
-    .btn { 
-      background: var(--primary); 
-      color: white; 
-      border: none; 
-      padding: 8px 12px; 
-      border-radius: 6px; 
-      font-weight: 500; 
-      font-size: 13px;
-      cursor: pointer; 
-      text-align: center;
-      display: inline-block;
-    }
-    .btn:active:not(:disabled) { background: var(--primary-hover); }
+    .btn { background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
     .btn.secondary { background: #f1f5f9; color: var(--text); border: 1px solid var(--stroke); }
-    .btn.secondary:active:not(:disabled) { background: var(--stroke); }
-    .btn:disabled { background: var(--stroke); color: #94a3b8; cursor: not-allowed; }
-
     .footer-actions { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .footer-actions .btn-main { padding: 12px; font-size: 15px; font-weight: 600; }
-    .footer-actions .btn-reset { background: transparent; color: var(--muted); border: none; text-decoration: underline; font-size: 12px; margin: 0 auto; padding: 4px; cursor: pointer; }
-
-    .send-progress { text-align: center; font-weight: 600; color: var(--primary); margin-bottom: 12px; }
-    .send-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
-    .send-actions .full { grid-column: span 2; padding: 12px; font-size: 14px; }
-    
     .hidden { display: none !important; }
-
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-    }
-    .modal-content {
-      background: var(--surface);
-      width: 100%;
-      max-width: 500px;
-      border-radius: 12px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-content { background: var(--surface); width: 100%; max-width: 500px; border-radius: 12px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
   </style>
 </head>
 <body>
@@ -198,78 +56,57 @@
         <option value="06 69 53 77 91">06 69 53 77 91</option>
         <option value="__custom__">Autre…</option>
       </select>
-      <input id="customSender" type="text" class="hidden" placeholder="06XXXXXXXX">
     </div>
     <div class="header-right">
-      <span id="authStatus" class="header-text">Déconnecté</span>
       <button class="btn secondary" id="btnConnect" style="padding: 6px 10px;">Connexion</button>
       <button class="btn secondary hidden" id="btnDisconnect" style="padding: 6px 10px;">Quitter</button>
     </div>
   </header>
 
   <div class="wrap">
-    
     <div id="viewPick">
       <div class="title-row">
-        <h1>Confirmation des rendez-vous par SMS</h1>
+        <h1>Confirmation des rendez-vous</h1>
         <div class="date-nav">
           <button class="btn secondary" id="btnPrevDay">&lt;</button>
           <input id="datePick" type="date" />
           <button class="btn secondary" id="btnNextDay">&gt;</button>
         </div>
       </div>
-
       <div class="filter-row">
-        <label>
-          <input type="checkbox" id="chkShowNoPhone">
-          Afficher sans téléphone
-        </label>
-        <button class="btn secondary" id="btnEditSms" style="padding: 4px 10px; font-size: 12px;">Modifier le SMS</button>
+        <label><input type="checkbox" id="chkShowNoPhone"> Afficher sans tel</label>
+        <button class="btn secondary" id="btnEditSms" style="padding: 4px 8px; font-size: 12px;">Modifier SMS</button>
       </div>
-
-      <div id="rdvList" class="list">
-        <div style="text-align:center; padding: 30px 10px; color: var(--muted); font-size: 13px; background: var(--surface); border-radius: 8px; border: 1px dashed var(--stroke);">
-          Sélectionnez une date ou connectez-vous.
-        </div>
-      </div>
-      
+      <div id="rdvList" class="list"></div>
       <div class="footer-actions">
-        <button class="btn btn-main" id="btnToSend" disabled>Continuer (0)</button>
-        <button class="btn-reset" id="btnClearSent">Réinitialiser cette date</button>
+        <button class="btn" id="btnToSend" disabled style="width:100%; padding: 14px;">Continuer (0)</button>
+        <button id="btnClearSent" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; margin:0 auto; cursor:pointer;">Réinitialiser cette date</button>
       </div>
     </div>
 
     <div id="viewSend" class="hidden">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
         <h1>Envoi des SMS</h1>
         <button class="btn secondary" id="btnBack">Retour</button>
       </div>
-
-      <div class="send-progress" id="sendProgress"></div>
-      
+      <div id="sendProgress" style="text-align:center; font-weight:600; color:var(--primary); margin-bottom:12px;"></div>
       <div id="sendList" class="list"></div>
-      
-      <div class="send-actions">
-        <button class="btn full" id="btnOpenSms">Ouvrir l'app SMS</button>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px;">
+        <button class="btn" id="btnOpenSms" style="grid-column: span 2; padding:14px;">Ouvrir l'app SMS</button>
         <button class="btn secondary" id="btnSkip">Passer</button>
-        <button class="btn" id="btnMarkSent" style="background: var(--success);">Marqué envoyé ✓</button>
+        <button class="btn" id="btnMarkSent" style="background:var(--success);">Envoyé ✓</button>
       </div>
     </div>
-
   </div>
 
   <div id="smsModal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h2 style="font-size: 18px; margin-bottom: 8px;">Modèle SMS</h2>
-      <p style="font-size: 11px; color: var(--muted); margin-bottom: 12px;">
-        Mots-clés : <strong>[PRENOM]</strong>, <strong>[JOUR]</strong>, <strong>[DATE]</strong>, <strong>[MOIS]</strong>, <strong>[HEURE]</strong>
-      </p>
-      <textarea id="smsTemplateInput" style="height: 200px; margin-bottom: 16px; font-family: inherit; font-size: 13px;"></textarea>
-      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <h2 style="margin-bottom:12px;">Modèle SMS</h2>
+      <textarea id="smsTemplateInput" style="width:100%; height:180px; margin-bottom:12px;"></textarea>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
         <button class="btn secondary" id="btnCancelSms">Annuler</button>
         <button class="btn" id="btnSaveSms">Enregistrer</button>
       </div>
-      <button id="btnResetSms" style="margin-top: 16px; background: none; border: none; color: var(--danger); font-size: 11px; text-decoration: underline; cursor: pointer;">Réinitialiser par défaut</button>
     </div>
   </div>
 
@@ -279,9 +116,7 @@ const SCOPES = "https://www.googleapis.com/auth/calendar.readonly openid email p
 const CAL_API = "https://www.googleapis.com/calendar/v3";
 
 let tokenClient = null, accessToken = "", eventsCache = [], selectedIds = new Set(), sendQueue = [], sendIndex = 0;
-
-const SENT_KEY = "smsv1_sent_map_v1", SENDER_KEY = "smsv1_sender_v1", SMS_TEMPLATE_KEY = "smsv1_template_v1";
-
+const SENT_KEY = "smsv1_sent_map_v1", SMS_TEMPLATE_KEY = "smsv1_template_v1";
 const DEFAULT_SMS_TEMPLATE = `Bonjour [PRENOM],\n\nJe vous confirme notre rendez-vous ce [JOUR] [DATE] [MOIS] à [HEURE].\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`;
 
 function pad2(n){ return String(n).padStart(2,"0"); }
@@ -295,39 +130,24 @@ function setSentMap(map){ localStorage.setItem(SENT_KEY, JSON.stringify(map||{})
 function isSent(eventId){ return !!getSentMap()[eventId]; }
 function markSent(eventId){ const map = getSentMap(); map[eventId] = { at: Date.now() }; setSentMap(map); }
 
-function clearSentForCurrentDate(){
-  const map = getSentMap();
-  eventsCache.forEach(e => delete map[e.id]);
-  setSentMap(map);
-}
-
+function clearSentForCurrentDate(){ const map = getSentMap(); eventsCache.forEach(e => delete map[e.id]); setSentMap(map); }
 function getSmsTemplate() { return localStorage.getItem(SMS_TEMPLATE_KEY) || DEFAULT_SMS_TEMPLATE; }
 
 function buildSmsText({prenom, dateObj, hhmm}){
   let text = getSmsTemplate();
   if(prenom) text = text.replace(/\[PRENOM\]/g, prenom);
-  else {
-    text = text.replace(/\[PRENOM\],/g, "").replace(/Bonjour ,/g, "Bonjour,").replace(/Bonjour  ,/g, "Bonjour,");
-  }
+  else text = text.replace(/\[PRENOM\],/g, "").replace(/Bonjour ,/g, "Bonjour,").replace(/Bonjour  ,/g, "Bonjour,");
   return text.replace(/\[JOUR\]/g, frDayName(dateObj)).replace(/\[DATE\]/g, pad2(dateObj.getDate())).replace(/\[MOIS\]/g, frMonthName(dateObj)).replace(/\[HEURE\]/g, hhmm).trim();
-}
-
-function updateAuthUI(isConnected) {
-  document.getElementById("btnConnect").classList.toggle("hidden", isConnected);
-  document.getElementById("btnDisconnect").classList.toggle("hidden", !isConnected);
-  const statusEl = document.getElementById("authStatus");
-  statusEl.textContent = isConnected ? "Connecté" : "Déconnecté";
-  statusEl.style.color = isConnected ? "var(--success)" : "var(--muted)";
 }
 
 async function fetchAndRenderEvents() {
   if(!accessToken) return;
   const list = document.getElementById("rdvList");
-  list.innerHTML = '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Chargement...</div>';
+  list.innerHTML = '<div style="text-align:center; padding: 20px;">Chargement...</div>';
   try {
     eventsCache = await loadEventsForDate(document.getElementById("datePick").value);
     renderEventsList(eventsCache);
-  } catch(e) { list.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--danger); font-size: 13px;">${e.message}</div>`; }
+  } catch(e) { list.innerHTML = `<div style="color:var(--danger);">${e.message}</div>`; }
 }
 
 function ensureTokenClient(){
@@ -338,32 +158,27 @@ function ensureTokenClient(){
       if(resp && resp.access_token){
         accessToken = resp.access_token;
         localStorage.setItem("gcal_access_token", accessToken);
-        localStorage.setItem("gcal_token_expiry", (Date.now() + 3540000).toString());
-        updateAuthUI(true); fetchAndRenderEvents();
+        localStorage.setItem("gcal_token_expiry", (Date.now() + 3500000).toString());
+        document.getElementById("btnConnect").classList.add("hidden");
+        document.getElementById("btnDisconnect").classList.remove("hidden");
+        fetchAndRenderEvents();
       }
     }
   });
 }
 
-function checkAutoConnect() {
-  const t = localStorage.getItem("gcal_access_token"), e = localStorage.getItem("gcal_token_expiry");
-  if(t && e && Date.now() < parseInt(e)){ accessToken = t; updateAuthUI(true); fetchAndRenderEvents(); }
-}
-
 async function loadEventsForDate(dateStr){
   const url = `${CAL_API}/calendars/primary/events?timeMin=${new Date(dateStr + "T00:00:00").toISOString()}&timeMax=${new Date(dateStr + "T23:59:59").toISOString()}&singleEvents=true&orderBy=startTime`;
   const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
-  if(res.status === 401) { updateAuthUI(false); throw new Error("Session expirée."); }
   const data = await res.json();
   return (data.items || []).filter(ev => ev.start.dateTime).map(ev => {
-    let cleanText = (ev.description || "").replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-    let phone = "", prenom = "";
+    let cleanText = (ev.description || "").replace(/<[^>]+>/g, ' ');
+    let prenom = "", phone = "";
     const pm = cleanText.match(/Pr[eé]nom\s*:\s*([^\n\r]+)/i);
     if(pm) prenom = pm[1].trim();
     else { const tm = (ev.summary || "").match(/RDV\s+([A-ZÀ-Ÿa-zà-ÿ-]+)/i); if(tm) prenom = tm[1].trim(); }
-    const phm = cleanText.match(/(?:T[eé]l[eé]phone|Tel|Mobile|Phone)\s*:\s*(\+?\d[\d\s().-]{7,}\d)/i);
+    const phm = cleanText.match(/(\+?\d[\d\s().-]{7,}\d)/);
     if(phm) phone = normPhone(phm[1]);
-    else { const fbm = cleanText.match(/(\+?\d[\d\s().-]{7,}\d)/); if(fbm) phone = normPhone(fbm[1]); }
     return { id: ev.id, summary: ev.summary || "(Sans titre)", start: new Date(ev.start.dateTime), prenom, phone };
   });
 }
@@ -371,7 +186,7 @@ async function loadEventsForDate(dateStr){
 function renderEventsList(events){
   const list = document.getElementById("rdvList"), showNoPhone = document.getElementById("chkShowNoPhone").checked;
   const filtered = events.filter(e => showNoPhone || !!e.phone);
-  list.innerHTML = filtered.length ? "" : '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Aucun rendez-vous.</div>';
+  list.innerHTML = filtered.length ? "" : '<div style="text-align:center; padding: 20px;">Aucun rendez-vous.</div>';
   selectedIds.clear();
   filtered.forEach(e => {
     const sent = isSent(e.id), hasPhone = !!e.phone, checked = hasPhone && !sent;
@@ -380,32 +195,35 @@ function renderEventsList(events){
     div.className = `item ${(!hasPhone || sent) ? 'disabled' : ''}`;
     div.innerHTML = `<input type="checkbox" class="pickBox" data-id="${e.id}" ${(!hasPhone || sent) ? 'disabled' : ''} ${checked ? 'checked' : ''}>
       <div class="item-time">${pad2(e.start.getHours())}h${pad2(e.start.getMinutes())}</div>
-      <div class="item-info"><div class="item-name">${e.summary}</div><div class="item-meta">${hasPhone ? e.phone : 'Tel manquant'} • ${e.prenom || "Prénom inconnu"}</div></div>
-      <div class="badge-group">${sent ? '<span class="badge badge-sent">Envoyé</span>' : ''}${!hasPhone ? '<span class="badge badge-error">Sans Tel</span>' : ''}</div>`;
+      <div class="item-info"><div class="item-name">${e.summary}</div><div class="item-meta">${hasPhone ? e.phone : 'Tel manquant'} • ${e.prenom || "???"}</div></div>
+      ${sent ? '<span class="badge badge-sent">Envoyé</span>' : ''}`;
     list.appendChild(div);
   });
   updateBtnState();
   list.querySelectorAll(".pickBox").forEach(cb => cb.onchange = (ev) => { if(ev.target.checked) selectedIds.add(ev.target.dataset.id); else selectedIds.delete(ev.target.dataset.id); updateBtnState(); });
 }
 
-function updateBtnState(){ const btn = document.getElementById("btnToSend"); btn.disabled = selectedIds.size === 0; btn.textContent = `Continuer (${selectedIds.size})`; }
+function updateBtnState(){ document.getElementById("btnToSend").textContent = `Continuer (${selectedIds.size})`; document.getElementById("btnToSend").disabled = selectedIds.size === 0; }
 
 document.getElementById("chkShowNoPhone").onchange = () => renderEventsList(eventsCache);
 document.getElementById("datePick").onchange = fetchAndRenderEvents;
-function modifierDate(jours) { const d = new Date(document.getElementById("datePick").value); d.setDate(d.getDate() + jours); document.getElementById("datePick").value = toLocalISO(d); fetchAndRenderEvents(); }
-document.getElementById("btnPrevDay").onclick = () => modifierDate(-1);
-document.getElementById("btnNextDay").onclick = () => modifierDate(1);
-document.getElementById("btnConnect").onclick = () => { ensureTokenClient(); tokenClient.requestAccessToken({prompt: ''}); };
-document.getElementById("btnDisconnect").onclick = () => { accessToken = ""; localStorage.clear(); updateAuthUI(false); document.getElementById("rdvList").innerHTML = "Connectez-vous."; };
+document.getElementById("btnPrevDay").onclick = () => { const d = new Date(document.getElementById("datePick").value); d.setDate(d.getDate()-1); document.getElementById("datePick").value = toLocalISO(d); fetchAndRenderEvents(); };
+document.getElementById("btnNextDay").onclick = () => { const d = new Date(document.getElementById("datePick").value); d.setDate(d.getDate()+1); document.getElementById("datePick").value = toLocalISO(d); fetchAndRenderEvents(); };
+document.getElementById("btnConnect").onclick = () => { ensureTokenClient(); tokenClient.requestAccessToken({prompt:''}); };
+document.getElementById("btnDisconnect").onclick = () => { accessToken = ""; localStorage.clear(); location.reload(); };
 document.getElementById("btnToSend").onclick = () => { sendQueue = eventsCache.filter(e => selectedIds.has(e.id)); sendIndex = 0; document.getElementById("viewPick").classList.add("hidden"); document.getElementById("viewSend").classList.remove("hidden"); updateSendUI(); };
 
 function updateSendUI(){
   const cur = sendQueue[sendIndex];
   document.getElementById("sendProgress").textContent = `SMS ${sendIndex + 1} / ${sendQueue.length}`;
-  document.getElementById("sendList").innerHTML = `<div class="item" style="border-color: var(--primary); background: #eff6ff;"><div class="item-time" style="background: white;">${pad2(cur.start.getHours())}h${pad2(cur.start.getMinutes())}</div><div class="item-info"><div class="item-name">${cur.summary}</div><div class="item-meta">${cur.phone} • ${cur.prenom || "Prénom manuel"}</div></div></div>`;
+  document.getElementById("sendList").innerHTML = `<div class="item" style="border-color:var(--primary); background:#eff6ff;"><div class="item-time" style="background:white;">${pad2(cur.start.getHours())}h${pad2(cur.start.getMinutes())}</div><div class="item-info"><div>${cur.summary}</div><div class="item-meta">${cur.phone} • ${cur.prenom || "Prénom manuel"}</div></div></div>`;
 }
 
-document.getElementById("btnOpenSms").onclick = () => { const ev = sendQueue[sendIndex]; window.location.href = `sms:${ev.phone}${/iPhone|iPad|iPod/i.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(buildSmsText({ prenom: ev.prenom, dateObj: ev.start, hhmm: pad2(ev.start.getHours())+"h"+pad2(ev.start.getMinutes())+"." }))}`; };
+document.getElementById("btnOpenSms").onclick = () => { 
+  const ev = sendQueue[sendIndex];
+  const hhmm = pad2(ev.start.getHours())+"h"+pad2(ev.start.getMinutes())+".";
+  window.location.href = `sms:${ev.phone}${/iPhone|iPad|iPod/i.test(navigator.userAgent)?'&':'?'}body=${encodeURIComponent(buildSmsText({ prenom: ev.prenom, dateObj: ev.start, hhmm }))}`;
+};
 document.getElementById("btnMarkSent").onclick = () => { markSent(sendQueue[sendIndex].id); nextSms(); };
 document.getElementById("btnSkip").onclick = nextSms;
 function nextSms(){ sendIndex++; if(sendIndex >= sendQueue.length){ document.getElementById("viewSend").classList.add("hidden"); document.getElementById("viewPick").classList.remove("hidden"); renderEventsList(eventsCache); } else updateSendUI(); }
@@ -415,14 +233,10 @@ document.getElementById("btnClearSent").onclick = () => { if(confirm("Réinitial
 document.getElementById("btnEditSms").onclick = () => { document.getElementById("smsTemplateInput").value = getSmsTemplate(); document.getElementById("smsModal").classList.remove("hidden"); };
 document.getElementById("btnCancelSms").onclick = () => document.getElementById("smsModal").classList.add("hidden");
 document.getElementById("btnSaveSms").onclick = () => { localStorage.setItem(SMS_TEMPLATE_KEY, document.getElementById("smsTemplateInput").value); document.getElementById("smsModal").classList.add("hidden"); };
-document.getElementById("btnResetSms").onclick = () => { if(confirm("Réinitialiser ?")) document.getElementById("smsTemplateInput").value = DEFAULT_SMS_TEMPLATE; };
 
 const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
-const ss = document.getElementById("senderSelect"), ci = document.getElementById("customSender"), sv = localStorage.getItem(SENDER_KEY);
-if(sv){ if(sv.startsWith("__custom__:")){ ss.value = "__custom__"; ci.classList.remove("hidden"); ci.value = sv.replace("__custom__:", ""); } else ss.value = sv; }
-ss.onchange = () => { ci.classList.toggle("hidden", ss.value !== "__custom__"); localStorage.setItem(SENDER_KEY, ss.value === "__custom__" ? "__custom__:"+ci.value : ss.value); };
-ci.oninput = () => localStorage.setItem(SENDER_KEY, "__custom__:"+ci.value);
-setTimeout(checkAutoConnect, 100);
+const t = localStorage.getItem("gcal_access_token"), e = localStorage.getItem("gcal_token_expiry");
+if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); fetchAndRenderEvents(); }
 </script>
 </body>
 </html>
