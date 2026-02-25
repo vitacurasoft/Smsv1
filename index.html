@@ -219,7 +219,15 @@ document.getElementById("datePick").onchange = fetchAndRenderEvents;
 document.getElementById("btnPrevDay").onclick = () => { const d = new Date(document.getElementById("datePick").value); d.setDate(d.getDate()-1); document.getElementById("datePick").value = toLocalISO(d); fetchAndRenderEvents(); };
 document.getElementById("btnNextDay").onclick = () => { const d = new Date(document.getElementById("datePick").value); d.setDate(d.getDate()+1); document.getElementById("datePick").value = toLocalISO(d); fetchAndRenderEvents(); };
 document.getElementById("btnConnect").onclick = () => { ensureTokenClient(); tokenClient.requestAccessToken({prompt:''}); };
-document.getElementById("btnDisconnect").onclick = () => { accessToken = ""; localStorage.clear(); location.reload(); };
+
+// CORRECTION ICI : On ne vide plus toute la mémoire locale
+document.getElementById("btnDisconnect").onclick = () => { 
+  accessToken = ""; 
+  localStorage.removeItem("gcal_access_token");
+  localStorage.removeItem("gcal_token_expiry");
+  location.reload(); 
+};
+
 document.getElementById("btnToSend").onclick = () => { sendQueue = eventsCache.filter(e => selectedIds.has(e.id)); sendIndex = 0; document.getElementById("viewPick").classList.add("hidden"); document.getElementById("viewSend").classList.remove("hidden"); updateSendUI(); };
 
 function updateSendUI(){
@@ -230,7 +238,6 @@ function updateSendUI(){
 
 document.getElementById("btnOpenSms").onclick = () => { 
   const ev = sendQueue[sendIndex];
-  // Correction ici : suppression du point automatique pour éviter le double point
   const hhmm = pad2(ev.start.getHours())+"h"+pad2(ev.start.getMinutes());
   window.location.href = `sms:${ev.phone}${/iPhone|iPad|iPod/i.test(navigator.userAgent)?'&':'?'}body=${encodeURIComponent(buildSmsText({ prenom: ev.prenom, dateObj: ev.start, hhmm }))}`;
 };
