@@ -51,7 +51,7 @@
     .header-text { font-size: 12px; color: var(--muted); display: none; }
     @media (min-width: 380px) { .header-text { display: inline; } }
 
-    select, input[type="text"], input[type="date"] {
+    select, input[type="text"], input[type="date"], textarea {
       padding: 6px 8px;
       border: 1px solid var(--stroke);
       border-radius: 6px;
@@ -61,7 +61,7 @@
       color: var(--text);
     }
     
-    select:focus, input:focus { border-color: var(--primary); background: var(--surface); }
+    select:focus, input:focus, textarea:focus { border-color: var(--primary); background: var(--surface); }
     #customSender { max-width: 90px; }
 
     .wrap { max-width: 600px; margin: 0 auto; padding: 12px 12px 80px; }
@@ -90,7 +90,11 @@
       font-size: 13px;
       color: var(--muted);
       margin-bottom: 12px;
-      padding: 0 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
     .filter-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 
@@ -180,6 +184,27 @@
     .send-actions .full { grid-column: span 2; padding: 12px; font-size: 14px; }
     
     .hidden { display: none !important; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-content {
+      background: var(--surface);
+      width: 100%;
+      max-width: 500px;
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 <body>
@@ -216,6 +241,7 @@
           <input type="checkbox" id="chkShowNoPhone">
           Afficher les rendez-vous sans téléphone
         </label>
+        <button class="btn secondary" id="btnEditSms" style="padding: 4px 10px; font-size: 12px;">Modifier le SMS</button>
       </div>
 
       <div id="rdvList" class="list">
@@ -249,6 +275,21 @@
 
   </div>
 
+  <div id="smsModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h2 style="font-size: 18px; margin-bottom: 8px;">Modifier le modèle SMS</h2>
+      <p style="font-size: 12px; color: var(--muted); margin-bottom: 16px;">
+        Variables reconnues : <strong>[PRENOM]</strong>, <strong>[JOUR]</strong>, <strong>[DATE]</strong>, <strong>[MOIS]</strong>, <strong>[HEURE]</strong>
+      </p>
+      <textarea id="smsTemplateInput" style="height: 220px; margin-bottom: 16px; font-family: inherit; font-size: 14px; resize: vertical;"></textarea>
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <button class="btn secondary" id="btnCancelSms">Annuler</button>
+        <button class="btn" id="btnSaveSms">Enregistrer</button>
+      </div>
+      <button id="btnResetSms" style="margin-top: 16px; background: none; border: none; color: var(--danger); font-size: 12px; text-decoration: underline; cursor: pointer; text-align: center; width: 100%;">Réinitialiser le modèle par défaut</button>
+    </div>
+  </div>
+
 <script>
 const OAUTH_CLIENT_ID = "962693468865-fpumnvpt5517nfs21kobao8l2ejni1qk.apps.googleusercontent.com";
 const SCOPES = "https://www.googleapis.com/auth/calendar.readonly openid email profile";
@@ -263,6 +304,9 @@ let sendIndex = 0;
 
 const SENT_KEY = "smsv1_sent_map_v1";
 const SENDER_KEY = "smsv1_sender_v1";
+const SMS_TEMPLATE_KEY = "smsv1_template_v1";
+
+const DEFAULT_SMS_TEMPLATE = `Bonjour [PRENOM],\n\nJe vous confirme notre rendez-vous ce [JOUR] [DATE] [MOIS] à [HEURE].\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`;
 
 function pad2(n){ return String(n).padStart(2,"0"); }
 function frDayName(date){ return ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"][date.getDay()]; }
@@ -287,9 +331,27 @@ function clearSentForCurrentDate(){
   if(hasChanges) setSentMap(map);
 }
 
+function getSmsTemplate() {
+  return localStorage.getItem(SMS_TEMPLATE_KEY) || DEFAULT_SMS_TEMPLATE;
+}
+
 function buildSmsText({prenom, dateObj, hhmm}){
-  const salutation = prenom ? `Bonjour ${prenom},` : `Bonjour,`;
-  return `${salutation}\n\nJe vous confirme notre rendez-vous ce ${frDayName(dateObj)} ${pad2(dateObj.getDate())} ${frMonthName(dateObj)} à ${hhmm}\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`.trim();
+  let text = getSmsTemplate();
+  
+  if(prenom) {
+    text = text.replace(/\[PRENOM\]/g, prenom);
+  } else {
+    text = text.replace(/\[PRENOM\]/g, "");
+    text = text.replace(/Bonjour ,/g, "Bonjour,");
+    text = text.replace(/Bonjour  ,/g, "Bonjour,");
+  }
+  
+  text = text.replace(/\[JOUR\]/g, frDayName(dateObj));
+  text = text.replace(/\[DATE\]/g, pad2(dateObj.getDate()));
+  text = text.replace(/\[MOIS\]/g, frMonthName(dateObj));
+  text = text.replace(/\[HEURE\]/g, hhmm);
+  
+  return text.trim();
 }
 
 function updateAuthUI(isConnected) {
@@ -529,6 +591,30 @@ document.getElementById("btnClearSent").onclick = () => {
   if(confirm("Voulez-vous vraiment réinitialiser les envois pour cette date uniquement ?")) { 
     clearSentForCurrentDate(); 
     renderEventsList(eventsCache); 
+  }
+};
+
+/* Gestion de la modale de modification du SMS */
+const modalSms = document.getElementById("smsModal");
+const inputSms = document.getElementById("smsTemplateInput");
+
+document.getElementById("btnEditSms").onclick = () => {
+  inputSms.value = getSmsTemplate();
+  modalSms.classList.remove("hidden");
+};
+
+document.getElementById("btnCancelSms").onclick = () => {
+  modalSms.classList.add("hidden");
+};
+
+document.getElementById("btnSaveSms").onclick = () => {
+  localStorage.setItem(SMS_TEMPLATE_KEY, inputSms.value);
+  modalSms.classList.add("hidden");
+};
+
+document.getElementById("btnResetSms").onclick = () => {
+  if(confirm("Voulez-vous revenir au texte par défaut ?")) {
+    inputSms.value = DEFAULT_SMS_TEMPLATE;
   }
 };
 
