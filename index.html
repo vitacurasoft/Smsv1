@@ -18,7 +18,6 @@
       --danger: #ef4444;
     }
 
-    /* Reset global pour éviter tout scroll horizontal */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { overflow-x: hidden; width: 100%; }
 
@@ -30,7 +29,6 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* En-tête (Header) compact */
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--stroke);
@@ -68,7 +66,6 @@
 
     .wrap { max-width: 600px; margin: 0 auto; padding: 12px 12px 80px; }
 
-    /* Titre et navigation date */
     .title-row {
       display: flex;
       flex-direction: column;
@@ -89,7 +86,6 @@
     }
     .date-nav input[type="date"] { border: none; background: transparent; font-weight: 600; flex: 1; text-align: center; }
 
-    /* Options et filtres */
     .filter-row {
       font-size: 13px;
       color: var(--muted);
@@ -98,7 +94,6 @@
     }
     .filter-row label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 
-    /* Cartes des rendez-vous (Ultra compactes) */
     .list { display: flex; flex-direction: column; gap: 6px; }
     
     .item { 
@@ -111,7 +106,6 @@
       gap: 10px; 
     }
     
-    /* Changement visuel quand la case est cochée */
     .item:has(input[type="checkbox"]:checked) {
       border-color: var(--primary);
       background: #eff6ff;
@@ -144,7 +138,6 @@
       flex-shrink: 0;
     }
 
-    /* Badges */
     .badge-group { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; flex-shrink: 0; }
     .badge { 
       padding: 2px 6px; 
@@ -156,7 +149,6 @@
     .badge-sent { background: #dcfce7; color: #166534; }
     .badge-error { background: #fee2e2; color: #991b1b; }
 
-    /* Boutons */
     .btn { 
       background: var(--primary); 
       color: white; 
@@ -174,7 +166,6 @@
     .btn.secondary:active:not(:disabled) { background: var(--stroke); }
     .btn:disabled { background: var(--stroke); color: #94a3b8; cursor: not-allowed; }
 
-    /* Pied de page (Actions) */
     .footer-actions {
       margin-top: 16px;
       display: flex;
@@ -182,9 +173,8 @@
       gap: 12px;
     }
     .footer-actions .btn-main { padding: 12px; font-size: 15px; font-weight: 600; }
-    .footer-actions .btn-reset { background: transparent; color: var(--muted); border: none; text-decoration: underline; font-size: 12px; margin: 0 auto; padding: 4px; }
+    .footer-actions .btn-reset { background: transparent; color: var(--muted); border: none; text-decoration: underline; font-size: 12px; margin: 0 auto; padding: 4px; cursor: pointer; }
 
-    /* Vue Envoi */
     .send-progress { text-align: center; font-weight: 600; color: var(--primary); margin-bottom: 12px; }
     .send-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
     .send-actions .full { grid-column: span 2; padding: 12px; font-size: 14px; }
@@ -236,7 +226,7 @@
       
       <div class="footer-actions">
         <button class="btn btn-main" id="btnToSend" disabled>Continuer (0)</button>
-        <button class="btn-reset" id="btnClearSent">Réinitialiser l'historique d'envoi</button>
+        <button class="btn-reset" id="btnClearSent">Réinitialiser l'historique de cette date</button>
       </div>
     </div>
 
@@ -260,9 +250,6 @@
   </div>
 
 <script>
-/* ==========================
-   CONFIG & LOGIQUE
-========================== */
 const OAUTH_CLIENT_ID = "962693468865-fpumnvpt5517nfs21kobao8l2ejni1qk.apps.googleusercontent.com";
 const SCOPES = "https://www.googleapis.com/auth/calendar.readonly openid email profile";
 const CAL_API = "https://www.googleapis.com/calendar/v3";
@@ -277,7 +264,6 @@ let sendIndex = 0;
 const SENT_KEY = "smsv1_sent_map_v1";
 const SENDER_KEY = "smsv1_sender_v1";
 
-/* Fonctions utilitaires */
 function pad2(n){ return String(n).padStart(2,"0"); }
 function frDayName(date){ return ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"][date.getDay()]; }
 function frMonthName(date){ return ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"][date.getMonth()]; }
@@ -288,14 +274,24 @@ function getSentMap(){ try { return JSON.parse(localStorage.getItem(SENT_KEY) ||
 function setSentMap(map){ localStorage.setItem(SENT_KEY, JSON.stringify(map||{})); }
 function isSent(eventId){ return !!getSentMap()[eventId]; }
 function markSent(eventId){ const map = getSentMap(); map[eventId] = { at: Date.now() }; setSentMap(map); }
-function clearSent(){ localStorage.removeItem(SENT_KEY); }
 
-/* Template SMS */
+/* Modification ici : la réinitialisation cible uniquement la date affichée */
+function clearSentForCurrentDate(){
+  const map = getSentMap();
+  let hasChanges = false;
+  eventsCache.forEach(e => {
+    if(map[e.id]){
+      delete map[e.id];
+      hasChanges = true;
+    }
+  });
+  if(hasChanges) setSentMap(map);
+}
+
 function buildSmsText({prenom, dateObj, hhmm}){
   return `Bonjour ${prenom || ""}\n\nJe vous confirme notre rendez-vous ce ${frDayName(dateObj)} ${pad2(dateObj.getDate())} ${frMonthName(dateObj)} à ${hhmm}\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`.trim();
 }
 
-/* Auth & UI State */
 function updateAuthUI(isConnected) {
   document.getElementById("btnConnect").classList.toggle("hidden", isConnected);
   document.getElementById("btnDisconnect").classList.toggle("hidden", !isConnected);
@@ -304,7 +300,6 @@ function updateAuthUI(isConnected) {
   statusEl.style.color = isConnected ? "var(--success)" : "var(--muted)";
 }
 
-/* Fonction de chargement unifiée */
 async function fetchAndRenderEvents() {
   if(!accessToken) return;
   
@@ -319,7 +314,6 @@ async function fetchAndRenderEvents() {
   }
 }
 
-/* Auth avec mémorisation de session (1h) et auto-chargement */
 function ensureTokenClient(){
   if(tokenClient) return;
   tokenClient = google.accounts.oauth2.initTokenClient({
@@ -401,7 +395,6 @@ async function loadEventsForDate(dateStr){
   });
 }
 
-/* UI Rendering & Filtre & Pré-sélection automatique */
 function renderEventsList(events){
   const list = document.getElementById("rdvList");
   const showNoPhone = document.getElementById("chkShowNoPhone").checked;
@@ -458,10 +451,7 @@ function updateBtnState(){
   btn.textContent = `Continuer (${selectedIds.size})`;
 }
 
-// Checkbox filtre sans tel
 document.getElementById("chkShowNoPhone").addEventListener("change", () => renderEventsList(eventsCache));
-
-// Changement de date automatique
 document.getElementById("datePick").addEventListener("change", fetchAndRenderEvents);
 
 function modifierDate(jours) {
@@ -485,7 +475,6 @@ document.getElementById("btnDisconnect").onclick = () => {
   document.getElementById("rdvList").innerHTML = '<div style="text-align:center; padding: 30px; color: var(--muted); font-size: 13px;">Sélectionnez une date ou connectez-vous.</div>';
 };
 
-/* Actions Vue 2 */
 document.getElementById("btnToSend").onclick = () => {
   sendQueue = eventsCache.filter(e => selectedIds.has(e.id));
   sendIndex = 0;
@@ -535,11 +524,14 @@ document.getElementById("btnBack").onclick = () => {
   document.getElementById("viewPick").classList.remove("hidden");
 };
 
+/* Modification ici : le bouton appelle la nouvelle fonction */
 document.getElementById("btnClearSent").onclick = () => {
-  if(confirm("Réinitialiser l'historique d'envoi ?")) { clearSent(); renderEventsList(eventsCache); }
+  if(confirm("Voulez-vous vraiment réinitialiser les envois pour cette date uniquement ?")) { 
+    clearSentForCurrentDate(); 
+    renderEventsList(eventsCache); 
+  }
 };
 
-/* Init */
 const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
 document.getElementById("datePick").value = toLocalISO(tomorrow);
 
