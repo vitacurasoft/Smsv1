@@ -275,7 +275,6 @@ function setSentMap(map){ localStorage.setItem(SENT_KEY, JSON.stringify(map||{})
 function isSent(eventId){ return !!getSentMap()[eventId]; }
 function markSent(eventId){ const map = getSentMap(); map[eventId] = { at: Date.now() }; setSentMap(map); }
 
-/* Modification ici : la réinitialisation cible uniquement la date affichée */
 function clearSentForCurrentDate(){
   const map = getSentMap();
   let hasChanges = false;
@@ -289,7 +288,8 @@ function clearSentForCurrentDate(){
 }
 
 function buildSmsText({prenom, dateObj, hhmm}){
-  return `Bonjour ${prenom || ""}\n\nJe vous confirme notre rendez-vous ce ${frDayName(dateObj)} ${pad2(dateObj.getDate())} ${frMonthName(dateObj)} à ${hhmm}\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`.trim();
+  const salutation = prenom ? `Bonjour ${prenom},` : `Bonjour,`;
+  return `${salutation}\n\nJe vous confirme notre rendez-vous ce ${frDayName(dateObj)} ${pad2(dateObj.getDate())} ${frMonthName(dateObj)} à ${hhmm}\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`.trim();
 }
 
 function updateAuthUI(isConnected) {
@@ -412,7 +412,7 @@ function renderEventsList(events){
     const shouldBeChecked = hasPhone && !sent;
     if (shouldBeChecked) selectedIds.add(e.id);
 
-    const hhmm = `${pad2(e.start.getHours())}:${pad2(e.start.getMinutes())}`;
+    const hhmm = `${pad2(e.start.getHours())}h${pad2(e.start.getMinutes())}`;
     const prenomAffiche = e.prenom ? e.prenom : "Prénom non identifié";
     
     const div = document.createElement("div");
@@ -490,7 +490,7 @@ function updateSendUI(){
   
   document.getElementById("sendList").innerHTML = `
     <div class="item" style="border-color: var(--primary); background: #eff6ff;">
-      <div class="item-time" style="background: white;">${pad2(cur.start.getHours())}:${pad2(cur.start.getMinutes())}</div>
+      <div class="item-time" style="background: white;">${pad2(cur.start.getHours())}h${pad2(cur.start.getMinutes())}</div>
       <div class="item-info">
         <div class="item-name">${cur.summary}</div>
         <div class="item-meta">${cur.phone} • ${prenomAffiche}</div>
@@ -501,7 +501,8 @@ function updateSendUI(){
 
 document.getElementById("btnOpenSms").onclick = () => {
   const ev = sendQueue[sendIndex];
-  const body = buildSmsText({ prenom: ev.prenom || "", dateObj: ev.start, hhmm: `${pad2(ev.start.getHours())}:${pad2(ev.start.getMinutes())}` });
+  const heureSms = `${pad2(ev.start.getHours())}h${pad2(ev.start.getMinutes())}`;
+  const body = buildSmsText({ prenom: ev.prenom || "", dateObj: ev.start, hhmm: heureSms });
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   window.location.href = `sms:${ev.phone}${isIOS ? '&' : '?'}body=${encodeURIComponent(body)}`;
 };
@@ -524,7 +525,6 @@ document.getElementById("btnBack").onclick = () => {
   document.getElementById("viewPick").classList.remove("hidden");
 };
 
-/* Modification ici : le bouton appelle la nouvelle fonction */
 document.getElementById("btnClearSent").onclick = () => {
   if(confirm("Voulez-vous vraiment réinitialiser les envois pour cette date uniquement ?")) { 
     clearSentForCurrentDate(); 
