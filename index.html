@@ -45,13 +45,13 @@
       padding: 6px 10px;
       border: 1px solid var(--stroke);
       border-radius: 8px;
-      font-size: 13px;
+      font-size: 14px;
       outline: none;
     }
 
     .wrap { max-width: 800px; margin: 20px auto; padding: 0 16px 40px; }
 
-    .section-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .section-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: block; }
     .panel { background: var(--surface); border-radius: 12px; padding: 20px; border: 1px solid var(--stroke); box-shadow: var(--shadow); }
 
     .item { 
@@ -93,7 +93,6 @@
     .badge-sent { background: #dcfce7; color: #166534; }
     .badge-error { background: #fee2e2; color: #991b1b; }
 
-    /* Modification : Les boutons s'affichent sous le contenu au lieu d'être fixés en bas */
     .footer-actions {
       margin-top: 20px;
       display: flex;
@@ -129,7 +128,10 @@
     
     <div id="viewPick">
       <div class="section-title">
-        Gestion des rendez-vous
+        <div style="margin-bottom: 12px;">Gestion des rendez-vous</div>
+        <label for="datePick" style="display:block; font-size: 14px; font-weight: normal; margin-bottom: 8px;">
+          <strong>Date des rendez-vous (demain par défaut) :</strong>
+        </label>
         <div style="display:flex; gap:8px;">
           <input id="datePick" type="date" />
           <button class="btn" id="btnLoad">Charger</button>
@@ -149,7 +151,7 @@
     </div>
 
     <div id="viewSend" class="hidden">
-      <div class="section-title">
+      <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
         <button class="btn secondary" id="btnBack">Retour</button>
         Envoi des confirmations
       </div>
@@ -201,44 +203,6 @@ function isSent(eventId){ return !!getSentMap()[eventId]; }
 function markSent(eventId){ const map = getSentMap(); map[eventId] = { at: Date.now() }; setSentMap(map); }
 function clearSent(){ localStorage.removeItem(SENT_KEY); }
 
-/* Parsing Description avec nettoyage HTML */
-function parseKeyValueLines(text){
-  const out = {};
-  if(!text) return out;
-  
-  // Remplacement des sauts de ligne HTML en texte pour sécuriser la lecture
-  let cleanText = text.replace(/<br\s*\/?>/gi, '\n')
-                      .replace(/<\/p>/gi, '\n')
-                      .replace(/<\/div>/gi, '\n')
-                      .replace(/<\/li>/gi, '\n');
-  
-  // Suppression de tout le reste des balises HTML
-  cleanText = cleanText.replace(/<[^>]+>/g, '');
-  
-  // Nettoyage des caractères spéciaux
-  cleanText = cleanText.replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
-
-  cleanText.split(/\r?\n/).forEach(line => {
-    const m = line.match(/^\s*([^:]{2,40})\s*:\s*(.+?)\s*$/);
-    if(m) {
-      out[m[1].trim().toLowerCase()] = m[2].trim();
-    }
-  });
-  return out;
-}
-
-function extractPhoneFromEvent(ev){
-  const kv = parseKeyValueLines(ev.description || "");
-  let phone = kv["téléphone"] || kv["telephone"] || kv["tel"] || kv["phone"] || kv["mobile"];
-  
-  if(!phone && ev.description){
-    const cleanDesc = ev.description.replace(/<[^>]+>/g, ' ');
-    const m = cleanDesc.match(/(\+?\d[\d\s().-]{7,}\d)/);
-    if(m) phone = m[1];
-  }
-  return normPhone(phone || "");
-}
-
 /* Template SMS */
 function buildSmsText({prenom, dateObj, hhmm}){
   return `Bonjour ${prenom || ""}\n\nJe vous confirme notre rendez-vous ce ${frDayName(dateObj)} ${pad2(dateObj.getDate())} ${frMonthName(dateObj)} à ${hhmm}\n\nLe cabinet se situe au 7, Rond-Point du Parc des Sports à Perpignan. (Rez de chaussée, à droite).\nUn parking gratuit se trouve à 50 mètres, juste en face du parc des sports.\n\nBien cordialement,\nDamien Leignel`.trim();
@@ -270,14 +234,45 @@ async function loadEventsForDate(dateStr){
   const data = await res.json();
   
   return (data.items || []).filter(ev => ev.start.dateTime).map(ev => {
-    const kv = parseKeyValueLines(ev.description || "");
+    // Nettoyage rigoureux de la description pour retirer le code HTML de WordPress
+    let desc = ev.description || "";
+    let cleanText = desc.replace(/<br\s*\/?>/gi, '\n')
+                        .replace(/<\/p>/gi, '\n')
+                        .replace(/<\/div>/gi, '\n')
+                        .replace(/<\/li>/gi, '\n');
+    cleanText = cleanText.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+
+    let phone = "";
+    let prenom = "";
+
+    // 1. Recherche du prénom par mot-clé (souple)
+    const prenomMatch = cleanText.match(/Pr[eé]nom\s*:\s*([^\n\r]+)/i);
+    if(prenomMatch) {
+      prenom = prenomMatch[1].trim();
+    } else {
+      // 2. Solution de secours : Recherche du prénom dans le titre après "RDV"
+      const titleMatch = (ev.summary || "").match(/RDV\s+([A-ZÀ-Ÿa-zà-ÿ-]+)/i);
+      if(titleMatch) {
+        prenom = titleMatch[1].trim();
+      }
+    }
+
+    // Recherche du téléphone
+    const phoneMatch = cleanText.match(/(?:T[eé]l[eé]phone|Tel|Mobile|Phone)\s*:\s*(\+?\d[\d\s().-]{7,}\d)/i);
+    if(phoneMatch) {
+      phone = normPhone(phoneMatch[1]);
+    } else {
+      const fallbackMatch = cleanText.match(/(\+?\d[\d\s().-]{7,}\d)/);
+      if(fallbackMatch) phone = normPhone(fallbackMatch[1]);
+    }
+
     return {
       id: ev.id,
       summary: ev.summary || "(Sans titre)",
       start: new Date(ev.start.dateTime),
       end: new Date(ev.end.dateTime),
-      prenom: kv["prénom"] || kv["prenom"] || "",
-      phone: extractPhoneFromEvent(ev)
+      prenom: prenom,
+      phone: phone
     };
   });
 }
@@ -294,7 +289,6 @@ function renderEventsList(events){
     const hasPhone = !!e.phone;
     const hhmm = `${pad2(e.start.getHours())}:${pad2(e.start.getMinutes())}`;
     
-    // Affichage spécifique si le prénom n'est pas trouvé
     const prenomAffiche = e.prenom ? e.prenom : "Prénom non identifié";
     
     const div = document.createElement("div");
