@@ -185,7 +185,7 @@ async function loadEventsForDate(dateStr){
     let prenom = "", phone = "";
     const pm = cleanText.match(/Pr[eé]nom\s*:\s*([^& \n\r\t]+)/i);
     if(pm) prenom = pm[1].trim();
-    else { const tm = (ev.summary || "").match(/RDV\s+([A-ZÀ-Ÿa-zà-ÿ-]+)/i); if(tm) prenom = tm[1].trim(); }
+    else { const tm = (ev.summary || "").match(/RDV\d*\s+([A-ZÀ-Ÿa-zà-ÿ-]+)/i); if(tm) prenom = tm[1].trim(); }
     const phm = cleanText.match(/(\+?\d[\d\s().-]{7,}\d)/);
     if(phm) phone = normPhone(phm[1]);
     return { id: ev.id, summary: ev.summary || "(Sans titre)", start: new Date(ev.start.dateTime), prenom, phone };
