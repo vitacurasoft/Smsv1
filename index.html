@@ -280,11 +280,42 @@ async function showWeekStats(){
     const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
     const data = await res.json();
     const isRdv = (ev) => /^RDV\d*\b/i.test((ev.summary || "").trim());
-    const remaining = (data.items || []).filter(ev => ev.start.dateTime && isRdv(ev)).map(ev => new Date(ev.start.dateTime)).filter(d => d > now).length;
+    const remainingRdvs = (data.items || []).filter(ev => ev.start.dateTime && isRdv(ev) && new Date(ev.start.dateTime) > now);
+    const remaining = remainingRdvs.length;
     const hhmm = `${pad2(now.getHours())}h${pad2(now.getMinutes())}`;
+    // Catégories par colorId Google Calendar
+    const categories = [
+      { id: "2", label: "Sauge (enfant)",      price: 50, color: "#7ae7bf" },
+      { id: "4", label: "Flamant rose (étud.)", price: 60, color: "#ff887c" },
+      { id: "3", label: "Raisin (adulte)",     price: 70, color: "#dbadff" }
+    ];
+    const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
+    let other = 0;
+    remainingRdvs.forEach(ev => {
+      if (counts.hasOwnProperty(ev.colorId)) counts[ev.colorId]++;
+      else other++;
+    });
+    const lines = categories.map(c => {
+      const n = counts[c.id], total = n * c.price;
+      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:13px;">
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${c.color}; margin-right:6px; vertical-align:middle;"></span>${c.label}</span>
+        <span><b>${n}</b> × ${c.price}€ = <b>${total}€</b></span>
+      </div>`;
+    }).join('');
+    const otherLine = other > 0
+      ? `<div style="display:flex; justify-content:space-between; padding:5px 0; color:var(--muted); font-size:12px;"><span>Non catégorisé</span><span><b>${other}</b></span></div>`
+      : '';
+    const grandTotal = categories.reduce((s, c) => s + counts[c.id] * c.price, 0);
     content.innerHTML = `
       <div style="font-size:36px; font-weight:700; color:var(--primary); text-align:center; margin:10px 0 4px;">${remaining}</div>
-      <div style="text-align:center; color:var(--muted);">RDV restant${remaining > 1 ? 's' : ''} à partir d'aujourd'hui à ${hhmm}</div>`;
+      <div style="text-align:center; color:var(--muted); margin-bottom:12px;">RDV restant${remaining > 1 ? 's' : ''} à partir d'aujourd'hui à ${hhmm}</div>
+      <div style="border-top:1px solid var(--stroke); padding-top:8px;">
+        ${lines}
+        ${otherLine}
+        <div style="display:flex; justify-content:space-between; padding-top:8px; margin-top:6px; border-top:1px solid var(--stroke); font-weight:700; font-size:15px;">
+          <span>Total</span><span style="color:var(--primary);">${grandTotal}€</span>
+        </div>
+      </div>`;
   } catch(err) {
     content.innerHTML = `<div style="color:var(--danger);">Erreur : ${err.message}</div>`;
   }
