@@ -267,14 +267,13 @@ async function showWeekStats(){
   if(!accessToken) return;
   const now = new Date();
   const dow = now.getDay(); // 0 = dimanche, 1 = lundi, ..., 6 = samedi
-  const offsetMon = dow === 0 ? 6 : dow - 1;
-  const monday = new Date(now); monday.setDate(now.getDate() - offsetMon); monday.setHours(0,0,0,0);
-  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - dow); weekStart.setHours(0,0,0,0);
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6); weekEnd.setHours(23,59,59,999);
   const content = document.getElementById("weekStatsContent");
   content.innerHTML = "Chargement…";
   document.getElementById("weekStatsModal").classList.remove("hidden");
   try {
-    const url = `${CAL_API}/calendars/primary/events?timeMin=${monday.toISOString()}&timeMax=${sunday.toISOString()}&singleEvents=true&orderBy=startTime`;
+    const url = `${CAL_API}/calendars/primary/events?timeMin=${weekStart.toISOString()}&timeMax=${weekEnd.toISOString()}&singleEvents=true&orderBy=startTime`;
     const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
     const data = await res.json();
     const isRdv = (ev) => /^RDV\d*\b/i.test((ev.summary || "").trim());
