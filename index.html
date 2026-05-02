@@ -273,15 +273,29 @@ async function showWeekStats(){
   content.innerHTML = "Chargement…";
   document.getElementById("weekStatsModal").classList.remove("hidden");
   try {
-    const url = `${CAL_API}/calendars/primary/events?timeMin=${weekStart.toISOString()}&timeMax=${weekEnd.toISOString()}&singleEvents=true&orderBy=startTime`;
+    const url = `${CAL_API}/calendars/primary/events?timeMin=${weekStart.toISOString()}&timeMax=${weekEnd.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=250`;
     const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
     const data = await res.json();
+    const items = data.items || [];
+    const timed = items.filter(ev => ev.start.dateTime);
     const isRdv = (ev) => /^RDV\d*\b/i.test((ev.summary || "").trim());
-    const remaining = (data.items || []).filter(ev => ev.start.dateTime && isRdv(ev)).map(ev => new Date(ev.start.dateTime)).filter(d => d > now).length;
+    const rdvs = timed.filter(isRdv);
+    const remaining = rdvs.map(ev => new Date(ev.start.dateTime)).filter(d => d > now).length;
     const hhmm = `${pad2(now.getHours())}h${pad2(now.getMinutes())}`;
+    const fmtD = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
+    const sample = timed.slice(0, 5).map(ev => `• "${(ev.summary || '(vide)').slice(0,40)}"`).join('<br>');
     content.innerHTML = `
       <div style="font-size:36px; font-weight:700; color:var(--primary); text-align:center; margin:10px 0 4px;">${remaining}</div>
-      <div style="text-align:center; color:var(--muted);">RDV restant${remaining > 1 ? 's' : ''} à partir d'aujourd'hui à ${hhmm}</div>`;
+      <div style="text-align:center; color:var(--muted);">RDV restant${remaining > 1 ? 's' : ''} à partir d'aujourd'hui à ${hhmm}</div>
+      <div style="margin-top:14px; padding:8px; background:#f1f5f9; border-radius:6px; font-size:11px; color:var(--muted); line-height:1.5;">
+        <b>Diagnostic</b> (à supprimer après debug) :<br>
+        Période : ${fmtD(weekStart)} 00h00 → ${fmtD(weekEnd)} 23h59<br>
+        Events fetched : <b>${items.length}</b><br>
+        Avec heure : <b>${timed.length}</b><br>
+        Commençant par RDV : <b>${rdvs.length}</b><br>
+        Après ${hhmm} : <b>${remaining}</b>
+        ${sample ? '<br><br><b>5 premiers titres :</b><br>' + sample : ''}
+      </div>`;
   } catch(err) {
     content.innerHTML = `<div style="color:var(--danger);">Erreur : ${err.message}</div>`;
   }
