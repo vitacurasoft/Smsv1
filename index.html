@@ -113,7 +113,11 @@
 
   <div id="weekStatsModal" class="modal-overlay hidden">
     <div class="modal-content">
-      <h2 style="margin-bottom:12px;">RDV cette semaine</h2>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">
+        <button id="btnWeekStatsPrev" class="btn secondary" style="padding:4px 12px; visibility:hidden; font-size:18px; line-height:1;">‹</button>
+        <h2 id="weekStatsTitle" style="margin:0; font-size:16px; flex:1; text-align:center;">RDV cette semaine</h2>
+        <button id="btnWeekStatsNext" class="btn secondary" style="padding:4px 12px; font-size:18px; line-height:1;">›</button>
+      </div>
       <div id="weekStatsContent" style="font-size:14px; line-height:1.5; margin-bottom:16px;"></div>
       <div style="display:flex; justify-content:flex-end;">
         <button class="btn" id="btnCloseWeekStats">Fermer</button>
@@ -263,6 +267,7 @@ document.getElementById("btnEditSms").onclick = () => { document.getElementById(
 document.getElementById("btnCancelSms").onclick = () => document.getElementById("smsModal").classList.add("hidden");
 document.getElementById("btnSaveSms").onclick = () => { localStorage.setItem(SMS_TEMPLATE_KEY, document.getElementById("smsTemplateInput").value); document.getElementById("smsModal").classList.add("hidden"); };
 
+let weekStatsOffset = 0;
 async function showWeekStats(){
   if(!accessToken) return;
   const now = new Date();
@@ -271,7 +276,11 @@ async function showWeekStats(){
   const daysToSat = (6 - weekEnd.getDay() + 7) % 7;
   weekEnd.setDate(weekEnd.getDate() + daysToSat);
   if (weekEnd <= now) weekEnd.setDate(weekEnd.getDate() + 7);
+  weekEnd.setDate(weekEnd.getDate() + 7 * weekStatsOffset);
   const weekStart = new Date(weekEnd); weekStart.setDate(weekEnd.getDate() - 5); weekStart.setHours(0, 0, 0, 0);
+  document.getElementById("btnWeekStatsPrev").style.visibility = weekStatsOffset > 0 ? "visible" : "hidden";
+  const fmtD = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
+  document.getElementById("weekStatsTitle").textContent = `Semaine du ${fmtD(weekStart)} au ${fmtD(weekEnd)}`;
   const content = document.getElementById("weekStatsContent");
   content.innerHTML = "Chargement…";
   document.getElementById("weekStatsModal").classList.remove("hidden");
@@ -306,9 +315,12 @@ async function showWeekStats(){
       ? `<div style="display:flex; justify-content:space-between; padding:5px 0; color:var(--muted); font-size:12px;"><span>Non catégorisé</span><span><b>${other}</b></span></div>`
       : '';
     const grandTotal = categories.reduce((s, c) => s + counts[c.id] * c.price, 0);
+    const subLabel = weekStatsOffset === 0
+      ? `RDV restant${remaining > 1 ? 's' : ''} à partir d'aujourd'hui à ${hhmm}`
+      : `RDV cette semaine`;
     content.innerHTML = `
       <div style="font-size:36px; font-weight:700; color:var(--primary); text-align:center; margin:10px 0 4px;">${remaining}</div>
-      <div style="text-align:center; color:var(--muted); margin-bottom:12px;">RDV restant${remaining > 1 ? 's' : ''} à partir d'aujourd'hui à ${hhmm}</div>
+      <div style="text-align:center; color:var(--muted); margin-bottom:12px;">${subLabel}</div>
       <div style="border-top:1px solid var(--stroke); padding-top:8px;">
         ${lines}
         ${otherLine}
@@ -320,7 +332,9 @@ async function showWeekStats(){
     content.innerHTML = `<div style="color:var(--danger);">Erreur : ${err.message}</div>`;
   }
 }
-document.getElementById("btnWeekStats").onclick = showWeekStats;
+document.getElementById("btnWeekStats").onclick = () => { weekStatsOffset = 0; showWeekStats(); };
+document.getElementById("btnWeekStatsNext").onclick = () => { weekStatsOffset++; showWeekStats(); };
+document.getElementById("btnWeekStatsPrev").onclick = () => { if (weekStatsOffset > 0) { weekStatsOffset--; showWeekStats(); } };
 document.getElementById("btnCloseWeekStats").onclick = () => document.getElementById("weekStatsModal").classList.add("hidden");
 
 const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
