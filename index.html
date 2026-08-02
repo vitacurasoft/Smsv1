@@ -134,7 +134,8 @@
         <button id="btnTrousNext" class="btn secondary" style="padding:4px 12px; font-size:18px; line-height:1;">›</button>
       </div>
       <div id="trousContent" style="font-size:14px; line-height:1.5; margin-bottom:16px;"></div>
-      <div style="display:flex; justify-content:flex-end;">
+      <div style="display:flex; justify-content:space-between; gap:8px;">
+        <button class="btn secondary" id="btnShareTrous">📤 Partager mes dispos</button>
         <button class="btn" id="btnCloseTrous">Fermer</button>
       </div>
     </div>
@@ -353,7 +354,21 @@ document.getElementById("btnWeekStatsNext").onclick = () => { weekStatsOffset++;
 document.getElementById("btnWeekStatsPrev").onclick = () => { if (weekStatsOffset > 0) { weekStatsOffset--; showWeekStats(); } };
 document.getElementById("btnCloseWeekStats").onclick = () => document.getElementById("weekStatsModal").classList.add("hidden");
 
-let trousOffset = 0;
+let trousOffset = 0, trousShareText = "";
+function buildTrousShareText(monday, weekEnd, freeSlots){
+  const fmtD = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  const hhmmOf = (d) => `${pad2(d.getHours())}h${pad2(d.getMinutes())}`;
+  const dayLines = [];
+  for(let d = 0; d < 6; d++){
+    const day = new Date(monday); day.setDate(monday.getDate() + d);
+    const key = toLocalISO(day);
+    const times = freeSlots.filter(s => toLocalISO(s.start) === key).map(s => hhmmOf(s.start));
+    if(times.length) dayLines.push(`${cap(frDayName(day))} ${fmtD(day)} : ${times.join(', ')}`);
+  }
+  if(!dayLines.length) return `Je n'ai plus de créneau disponible pour la semaine du ${fmtD(monday)} au ${fmtD(weekEnd)}.`;
+  return `Bonjour,\nVoici mes disponibilités (semaine du ${fmtD(monday)} au ${fmtD(weekEnd)}) :\n${dayLines.map(l => "• " + l).join("\n")}\n\nDites-moi le créneau qui vous conviendrait.\nDamien Leignel`;
+}
 async function showTrous(){
   if(!accessToken) return;
   const now = new Date();
@@ -410,6 +425,7 @@ async function showTrous(){
     const rdvRestants = rdvEvents.filter(ev => ev.start > now);
     const totalTrous = freeSlots.length;
     const totalRdv = rdvRestants.length;
+    trousShareText = buildTrousShareText(monday, weekEnd, freeSlots);
 
     const cap = (str) => str.charAt(0).toUpperCase() + str.slice(1);
     const hhmmOf = (d) => `${pad2(d.getHours())}h${pad2(d.getMinutes())}`;
@@ -455,6 +471,13 @@ document.getElementById("btnTrous").onclick = () => { trousOffset = 0; showTrous
 document.getElementById("btnTrousNext").onclick = () => { trousOffset++; showTrous(); };
 document.getElementById("btnTrousPrev").onclick = () => { if (trousOffset > 0) { trousOffset--; showTrous(); } };
 document.getElementById("btnCloseTrous").onclick = () => document.getElementById("trousModal").classList.add("hidden");
+document.getElementById("btnShareTrous").onclick = async () => {
+  if(!trousShareText) return;
+  try {
+    if(navigator.share){ await navigator.share({ text: trousShareText }); }
+    else { await navigator.clipboard.writeText(trousShareText); alert("Disponibilités copiées ! Collez-les dans un SMS ou WhatsApp."); }
+  } catch(e){ /* partage annulé par l'utilisateur : on ignore */ }
+};
 
 const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
 const t = localStorage.getItem("gcal_access_token"), e = localStorage.getItem("gcal_token_expiry");
