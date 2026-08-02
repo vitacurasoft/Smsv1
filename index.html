@@ -406,8 +406,10 @@ async function showTrous(){
     const isFree = (slot) => !events.some(ev => ev.start < slot.end && ev.end > slot.start);
     const upcoming = (slot) => trousOffset > 0 || slot.start >= now;
     const freeSlots = slots.filter(s => isFree(s) && upcoming(s));
+    // RDV comptés comme dans le bouton stats : uniquement les RDV à venir (start > maintenant)
+    const rdvRestants = rdvEvents.filter(ev => ev.start > now);
     const totalTrous = freeSlots.length;
-    const totalRdv = rdvEvents.length;
+    const totalRdv = rdvRestants.length;
 
     const cap = (str) => str.charAt(0).toUpperCase() + str.slice(1);
     const hhmmOf = (d) => `${pad2(d.getHours())}h${pad2(d.getMinutes())}`;
@@ -416,37 +418,32 @@ async function showTrous(){
     for(let d = 0; d < 6; d++){
       const day = new Date(monday); day.setDate(monday.getDate() + d);
       const key = toLocalISO(day);
-      const past = trousOffset === 0 && key < todayKey; // jour déjà passé (semaine courante)
+      if(trousOffset === 0 && key < todayKey) continue; // on masque les jours déjà passés (semaine courante)
       const times = freeSlots.filter(s => toLocalISO(s.start) === key).map(s => hhmmOf(s.start));
-      const rdvCount = rdvEvents.filter(ev => toLocalISO(ev.start) === key).length;
+      const rdvCount = rdvRestants.filter(ev => toLocalISO(ev.start) === key).length;
       const chips = times.length
-        ? times.map(t => `<span style="display:inline-block; background:#eff6ff; color:var(--primary); font-weight:600; font-size:12px; padding:2px 7px; border-radius:4px; margin:2px 4px 0 0;">${t}</span>`).join('')
-        : `<span style="color:var(--muted); font-size:12px;">${past ? 'terminé' : 'aucun trou'}</span>`;
-      lines.push(`<div style="padding:8px 0; border-bottom:1px solid var(--stroke);${past ? ' opacity:0.5;' : ''}">
-        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:3px;">
-          <span style="font-weight:600; font-size:13px;">${cap(frDayName(day))} ${fmtD(day)}</span>
+        ? times.map(t => `<span style="display:inline-block; background:#eff6ff; color:var(--primary); font-weight:600; font-size:13px; padding:3px 9px; border-radius:5px; margin:3px 6px 0 0;">${t}</span>`).join('')
+        : `<span style="color:var(--muted); font-size:12px;">aucun trou</span>`;
+      lines.push(`<div style="padding:9px 0; border-bottom:1px solid var(--stroke);">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+          <span style="font-weight:600; font-size:14px;">${cap(frDayName(day))} ${fmtD(day)}</span>
           <span style="font-size:12px; color:var(--muted);"><b style="color:var(--text);">${rdvCount}</b> RDV · <b style="color:var(--primary);">${times.length}</b> trou${times.length > 1 ? 's' : ''}</span>
         </div>
         <div>${chips}</div>
       </div>`);
     }
 
-    const hhmm = hhmmOf(now);
-    const subLabel = trousOffset === 0
-      ? `Disponibilités à partir d'aujourd'hui ${hhmm}`
-      : `Disponibilités de la semaine`;
     content.innerHTML = `
-      <div style="display:flex; justify-content:center; gap:28px; margin:8px 0 2px;">
+      <div style="display:flex; justify-content:center; gap:32px; margin:8px 0 14px;">
         <div style="text-align:center;">
-          <div style="font-size:34px; font-weight:700; color:var(--primary); line-height:1;">${totalTrous}</div>
-          <div style="font-size:12px; color:var(--muted); margin-top:2px;">trou${totalTrous > 1 ? 's' : ''} libre${totalTrous > 1 ? 's' : ''}</div>
+          <div style="font-size:36px; font-weight:700; color:var(--primary); line-height:1;">${totalTrous}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:3px;">trou${totalTrous > 1 ? 's' : ''} libre${totalTrous > 1 ? 's' : ''}</div>
         </div>
         <div style="text-align:center;">
-          <div style="font-size:34px; font-weight:700; color:var(--text); line-height:1;">${totalRdv}</div>
-          <div style="font-size:12px; color:var(--muted); margin-top:2px;">RDV pris</div>
+          <div style="font-size:36px; font-weight:700; color:var(--text); line-height:1;">${totalRdv}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:3px;">RDV à venir</div>
         </div>
       </div>
-      <div style="text-align:center; color:var(--muted); margin-bottom:10px; font-size:12px;">${subLabel}</div>
       <div style="border-top:1px solid var(--stroke);">
         ${lines.join('')}
       </div>`;
