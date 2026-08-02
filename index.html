@@ -401,8 +401,8 @@ async function shareTrousQuinzaine(){
   }
 
   const text = dayLines.length
-    ? `Bonjour,\nVoici mes prochaines disponibilités :\n${dayLines.map(l => "• " + l).join("\n")}\n\nDites-moi le créneau qui vous conviendrait.\nDamien Leignel`
-    : `Bonjour,\nJe n'ai pas de créneau disponible dans les 15 prochains jours pour le moment.\nN'hésitez pas à me recontacter.\nDamien Leignel`;
+    ? `Bonjour,\nAvec plaisir ! Voici mes prochaines disponibilités :\n${dayLines.map(l => "• " + l).join("\n")}\n\nN'hésitez pas à me dire le moment qui vous conviendrait le mieux, je m'adapte bien volontiers.\nAu plaisir de vous revoir bientôt,\nDamien Leignel`
+    : `Bonjour,\nJe suis désolé, je n'ai pas de créneau disponible dans les 15 prochains jours pour le moment. N'hésitez pas à me recontacter un peu plus tard, ce sera avec plaisir.\nAu plaisir de vous revoir bientôt,\nDamien Leignel`;
   try {
     if(navigator.share){ await navigator.share({ text }); }
     else { await navigator.clipboard.writeText(text); alert("Disponibilités copiées ! Collez-les dans un SMS ou WhatsApp."); }
