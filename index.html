@@ -425,8 +425,8 @@ async function shareTrousQuinzaine(){
   byDay.forEach(arr => dayLines.push(`${cap(frDayName(arr[0]))} ${fmtD(arr[0])} : ${arr.map(hhmmOf).join(', ')}`));
 
   const text = dayLines.length
-    ? `Bonjour,\nVoici mes prochaines disponibilités :\n\n${dayLines.join("\n")}\n\nDites-moi le moment qui vous conviendrait le mieux, je m'adapte bien volontiers.\nÀ très bientôt,\nDamien LEIGNEL`
-    : `Bonjour,\nJe n'ai pas de créneau disponible pour le moment. N'hésitez pas à me recontacter un peu plus tard.\nÀ très bientôt,\nDamien LEIGNEL`;
+    ? `Bonjour,\nVoici mes prochaines disponibilités :\n\n${dayLines.join("\n")}\n\nVous pouvez réserver le créneau de votre choix en ligne en 1 minute, sans créer de compte, sur www.vita-cura.fr.\nOu dites-moi simplement le moment qui vous conviendrait le mieux, je m'adapte bien volontiers.\nÀ très bientôt,\nDamien LEIGNEL`
+    : `Bonjour,\nJe n'ai pas de créneau à vous proposer dans l'immédiat, mais vous pouvez réserver en ligne en 1 minute, sans créer de compte, sur www.vita-cura.fr.\nÀ très bientôt,\nDamien LEIGNEL`;
 
   document.getElementById("shareMsgText").value = text;
   document.getElementById("btnCopyMsg").textContent = "📋 Copier le message";
