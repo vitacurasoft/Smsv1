@@ -383,7 +383,7 @@ async function shareTrousQuinzaine(){
   const isFree = (a, b) => !events.some(ev => ev.start < b && ev.end > a);
   const fmtD = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  const hhmmOf = (d) => `${pad2(d.getHours())}h${pad2(d.getMinutes())}`;
+  const hhmmOf = (d) => { const h = d.getHours(), m = d.getMinutes(); return m === 0 ? `${h}h` : `${h}h${pad2(m)}`; };
   const dayLines = [];
   for(let d = 0; d < 15; d++){
     const day = new Date(now); day.setDate(now.getDate() + d); day.setHours(0,0,0,0);
@@ -401,8 +401,8 @@ async function shareTrousQuinzaine(){
   }
 
   const text = dayLines.length
-    ? `Bonjour,\nAvec plaisir ! Voici mes prochaines disponibilités :\n${dayLines.map(l => "• " + l).join("\n")}\n\nN'hésitez pas à me dire le moment qui vous conviendrait le mieux, je m'adapte bien volontiers.\nAu plaisir de vous revoir bientôt,\nDamien Leignel`
-    : `Bonjour,\nJe suis désolé, je n'ai pas de créneau disponible dans les 15 prochains jours pour le moment. N'hésitez pas à me recontacter un peu plus tard, ce sera avec plaisir.\nAu plaisir de vous revoir bientôt,\nDamien Leignel`;
+    ? `Bonjour,\nAvec plaisir ! Voici mes prochaines disponibilités :\n\n${dayLines.join("\n")}\n\nN'hésitez pas à me dire le moment qui vous conviendrait le mieux, je m'adapte bien volontiers.\nAu plaisir de vous revoir bientôt,\nDamien LEIGNEL`
+    : `Bonjour,\nJe suis désolé, je n'ai pas de créneau disponible dans les 15 prochains jours pour le moment. N'hésitez pas à me recontacter un peu plus tard, ce sera avec plaisir.\nAu plaisir de vous revoir bientôt,\nDamien LEIGNEL`;
   try {
     if(navigator.share){ await navigator.share({ text }); }
     else { await navigator.clipboard.writeText(text); alert("Disponibilités copiées ! Collez-les dans un SMS ou WhatsApp."); }
