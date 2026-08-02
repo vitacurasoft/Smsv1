@@ -135,7 +135,7 @@
       </div>
       <div id="trousContent" style="font-size:14px; line-height:1.5; margin-bottom:16px;"></div>
       <div style="display:flex; justify-content:space-between; gap:8px;">
-        <button class="btn secondary" id="btnShareTrous">📤 Dispos 15 jours</button>
+        <button class="btn secondary" id="btnShareTrous">📤 Prochaines dispos</button>
         <button class="btn" id="btnCloseTrous">Fermer</button>
       </div>
     </div>
@@ -413,10 +413,8 @@ async function shareTrousQuinzaine(){
     });
   }
 
-  // Créneaux de la quinzaine (15 j) ; si aucun, repli sur les 6 premiers même plus loin
-  const limit15 = new Date(now); limit15.setDate(limit15.getDate() + 15);
-  const inFortnight = allFree.filter(a => a < limit15);
-  const chosen = inFortnight.length ? inFortnight : allFree.slice(0, 6);
+  // Toujours les 6 prochains créneaux libres, peu importe la date
+  const chosen = allFree.slice(0, 6);
 
   // Regroupe par jour (ordre chronologique conservé)
   const byDay = new Map();
