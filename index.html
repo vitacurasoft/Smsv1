@@ -59,6 +59,7 @@
     </div>
     <div class="header-right">
       <button class="btn secondary hidden" id="btnWeekStats" style="padding: 6px 10px;" title="RDV restants cette semaine">📊</button>
+      <button class="btn secondary hidden" id="btnMonthStats" style="padding: 6px 10px;" title="Bilan du mois">📅</button>
       <button class="btn secondary hidden" id="btnTrous" style="padding: 6px 10px;" title="Trous disponibles cette semaine">🕳️</button>
       <button class="btn secondary" id="btnConnect" style="padding: 6px 10px;">Connexion</button>
       <button class="btn secondary hidden" id="btnDisconnect" style="padding: 6px 10px;">Quitter</button>
@@ -122,6 +123,16 @@
       <div id="weekStatsContent" style="font-size:14px; line-height:1.5; margin-bottom:16px;"></div>
       <div style="display:flex; justify-content:flex-end;">
         <button class="btn" id="btnCloseWeekStats">Fermer</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="monthStatsModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h2 id="monthStatsTitle" style="margin:0 0 12px; font-size:16px; text-align:center;">Bilan du mois</h2>
+      <div id="monthStatsContent" style="font-size:14px; line-height:1.5; margin-bottom:16px;"></div>
+      <div style="display:flex; justify-content:flex-end;">
+        <button class="btn" id="btnCloseMonthStats">Fermer</button>
       </div>
     </div>
   </div>
@@ -205,6 +216,7 @@ function ensureTokenClient(){
         document.getElementById("btnConnect").classList.add("hidden");
         document.getElementById("btnDisconnect").classList.remove("hidden");
         document.getElementById("btnWeekStats").classList.remove("hidden");
+        document.getElementById("btnMonthStats").classList.remove("hidden");
         document.getElementById("btnTrous").classList.remove("hidden");
         fetchAndRenderEvents();
       }
@@ -365,6 +377,89 @@ document.getElementById("btnWeekStats").onclick = () => { weekStatsOffset = 0; s
 document.getElementById("btnWeekStatsNext").onclick = () => { weekStatsOffset++; showWeekStats(); };
 document.getElementById("btnWeekStatsPrev").onclick = () => { if (weekStatsOffset > 0) { weekStatsOffset--; showWeekStats(); } };
 document.getElementById("btnCloseWeekStats").onclick = () => document.getElementById("weekStatsModal").classList.add("hidden");
+
+async function showMonthStats(){
+  if(!accessToken) return;
+  const now = new Date();
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0); // 1er du mois suivant, 00h
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  document.getElementById("monthStatsTitle").textContent = `${cap(frMonthName(now))} ${now.getFullYear()}`;
+  const content = document.getElementById("monthStatsContent");
+  content.innerHTML = "Chargement…";
+  document.getElementById("monthStatsModal").classList.remove("hidden");
+  try {
+    const startFetch = new Date(now); startFetch.setHours(0, 0, 0, 0);
+    const url = `${CAL_API}/calendars/primary/events?timeMin=${startFetch.toISOString()}&timeMax=${monthEnd.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=2500`;
+    const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
+    const data = await res.json();
+    const items = data.items || [];
+    // RDV restants (à venir) d'ici la fin du mois — même règle que le graphique
+    const isRdv = (ev) => /^RDV\d*\b/i.test((ev.summary || "").trim());
+    const remainingRdvs = items.filter(ev => ev.start.dateTime && isRdv(ev) && new Date(ev.start.dateTime) > now);
+    const remaining = remainingRdvs.length;
+    const hhmm = `${pad2(now.getHours())}h${pad2(now.getMinutes())}`;
+    // Catégories par colorId (identique au menu graphique)
+    const categories = [
+      { id: "2", label: "Sauge (enfant)",      price: 50, color: "#7ae7bf" },
+      { id: "4", label: "Flamant rose (étud.)", price: 60, color: "#ff887c" },
+      { id: "3", label: "Raisin (adulte)",     price: 70, color: "#dbadff" }
+    ];
+    const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
+    let other = 0;
+    remainingRdvs.forEach(ev => { if (counts.hasOwnProperty(ev.colorId)) counts[ev.colorId]++; else other++; });
+    // Trous libres d'ici la fin du mois (mêmes règles horaires que les dispos)
+    const events = items.filter(ev => ev.start.dateTime && ev.end && ev.end.dateTime)
+      .map(ev => ({ start: new Date(ev.start.dateTime), end: new Date(ev.end.dateTime) }));
+    const SLOT_MS = 90 * 60 * 1000;
+    const isFree = (a, b) => !events.some(ev => ev.start < b && ev.end > a);
+    let trous = 0;
+    for(let day = new Date(startFetch); day < monthEnd; day.setDate(day.getDate() + 1)){
+      workWindowsForDay(day).forEach(([h1,m1,h2,m2]) => {
+        const ws = new Date(day); ws.setHours(h1,m1,0,0);
+        const we = new Date(day); we.setHours(h2,m2,0,0);
+        for(let s = ws.getTime(); s + SLOT_MS <= we.getTime(); s += SLOT_MS){
+          const a = new Date(s), b = new Date(s + SLOT_MS);
+          if(a < now || a >= monthEnd) continue;
+          if(isFree(a, b)) trous++;
+        }
+      });
+    }
+    const lines = categories.map(c => {
+      const n = counts[c.id], total = n * c.price;
+      return `<div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; font-size:13px;">
+        <span><span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${c.color}; margin-right:6px; vertical-align:middle;"></span>${c.label}</span>
+        <span><b>${n}</b> × ${c.price}€ = <b>${total}€</b></span>
+      </div>`;
+    }).join('');
+    const otherLine = other > 0
+      ? `<div style="display:flex; justify-content:space-between; padding:5px 0; color:var(--muted); font-size:12px;"><span>Non catégorisé</span><span><b>${other}</b></span></div>`
+      : '';
+    const grandTotal = categories.reduce((s, c) => s + counts[c.id] * c.price, 0);
+    content.innerHTML = `
+      <div style="display:flex; justify-content:center; gap:32px; margin:8px 0 4px;">
+        <div style="text-align:center;">
+          <div style="font-size:34px; font-weight:700; color:var(--primary); line-height:1;">${remaining}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:3px;">RDV restants</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:34px; font-weight:700; color:var(--text); line-height:1;">${trous}</div>
+          <div style="font-size:12px; color:var(--muted); margin-top:3px;">trous libres</div>
+        </div>
+      </div>
+      <div style="text-align:center; color:var(--muted); margin-bottom:12px; font-size:12px;">D'ici la fin du mois (à partir de ${hhmm})</div>
+      <div style="border-top:1px solid var(--stroke); padding-top:8px;">
+        ${lines}
+        ${otherLine}
+        <div style="display:flex; justify-content:space-between; padding-top:8px; margin-top:6px; border-top:1px solid var(--stroke); font-weight:700; font-size:15px;">
+          <span>Total</span><span style="color:var(--primary);">${grandTotal}€</span>
+        </div>
+      </div>`;
+  } catch(err) {
+    content.innerHTML = `<div style="color:var(--danger);">Erreur : ${err.message}</div>`;
+  }
+}
+document.getElementById("btnMonthStats").onclick = () => showMonthStats();
+document.getElementById("btnCloseMonthStats").onclick = () => document.getElementById("monthStatsModal").classList.add("hidden");
 
 let trousOffset = 0;
 // Fenêtres de travail selon le jour : lundi démarre 10h30, samedi matin seul, dimanche fermé
@@ -548,7 +643,7 @@ document.getElementById("btnCopyMsg").onclick = async () => {
 
 const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
 const t = localStorage.getItem("gcal_access_token"), e = localStorage.getItem("gcal_token_expiry");
-if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); fetchAndRenderEvents(); }
+if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); fetchAndRenderEvents(); }
 </script>
 </body>
 </html>
