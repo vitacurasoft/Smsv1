@@ -605,7 +605,7 @@ function blDraw(){
       const st = blCellState(day, sl, valid[ri], now);
       const key = toLocalISO(day)+"_"+ri;
       let label = "", del = null;
-      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary):""; if(st==="blocage" && ev){ del = ev.id; label += "  ✕"; } }
+      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary, 80):""; if(st==="blocage" && ev){ del = ev.id; label += "  ✕"; } }
       else if(st==="free") label = "Libre";
       else if(st==="off") label = "—";
       html += blCell(st, blSel.has(key), key, label, true, del);
