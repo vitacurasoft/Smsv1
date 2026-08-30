@@ -46,6 +46,26 @@
     .hidden { display: none !important; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
     .modal-content { background: var(--surface); width: 100%; max-width: 500px; border-radius: 12px; padding: 20px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+    .bl-toolbar { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    .bl-seg { display:inline-flex; border:1px solid var(--stroke); border-radius:8px; overflow:hidden; }
+    .bl-seg button { border:none; background:var(--surface); padding:6px 12px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; }
+    .bl-seg button.active { background:var(--primary); color:#fff; }
+    .bl-nav { display:flex; align-items:center; gap:4px; margin-left:auto; }
+    .bl-grid { display:grid; gap:4px; }
+    .bl-cell { min-height:46px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1.15; text-align:center; user-select:none; padding:2px; overflow:hidden; }
+    .bl-cell-big { min-height:52px; justify-content:flex-start; text-align:left; padding:6px 10px; font-size:13px; }
+    .bl-head { font-size:11px; font-weight:700; color:var(--muted); text-align:center; line-height:1.15; }
+    .bl-time { font-size:11px; font-weight:600; color:var(--muted); display:flex; align-items:center; justify-content:flex-end; padding-right:4px; }
+    .bl-free { background:#f8fafc; border:1px dashed #c4b5fd; color:#a78bda; cursor:pointer; }
+    .bl-free:active { background:#ede9fe; }
+    .bl-sel { background:#b7a4ef; border:1px solid #6d28d9; color:#fff; font-weight:700; cursor:pointer; }
+    .bl-busy { background:#e9d5ff; color:#6b21a8; }
+    .bl-blocage { background:#cfc8f2; color:#4c3a91; }
+    .bl-off { background:repeating-linear-gradient(45deg,#f8fafc,#f8fafc 5px,#eef1f6 5px,#eef1f6 10px); }
+    .bl-past { background:#f1f5f9; color:#cbd5e1; }
+    .bl-legend { display:flex; gap:12px; justify-content:center; margin-top:10px; font-size:11px; color:var(--muted); flex-wrap:wrap; }
+    .bl-legend span { display:inline-flex; align-items:center; gap:4px; }
+    .bl-dot { width:11px; height:11px; border-radius:3px; display:inline-block; }
   </style>
 </head>
 <body>
@@ -61,6 +81,7 @@
       <button class="btn secondary hidden" id="btnWeekStats" style="padding: 6px 10px;" title="RDV restants cette semaine">📊</button>
       <button class="btn secondary hidden" id="btnMonthStats" style="padding: 6px 10px;" title="Bilan du mois">📅</button>
       <button class="btn secondary hidden" id="btnTrous" style="padding: 6px 10px;" title="Trous disponibles cette semaine">🕳️</button>
+      <button class="btn secondary hidden" id="btnBlocage" style="padding: 6px 10px;" title="Bloquer des créneaux">🔒</button>
       <button class="btn secondary" id="btnConnect" style="padding: 6px 10px;">Connexion</button>
       <button class="btn secondary hidden" id="btnDisconnect" style="padding: 6px 10px;">Quitter</button>
     </div>
@@ -137,6 +158,37 @@
     </div>
   </div>
 
+  <div id="blocageModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:600px;">
+      <h2 style="margin:0 0 10px; font-size:16px;">Bloquer des créneaux</h2>
+      <div class="bl-toolbar">
+        <div class="bl-seg">
+          <button id="blTabWeek" class="active">Semaine</button>
+          <button id="blTabDay">Jour</button>
+        </div>
+        <div class="bl-nav">
+          <button class="btn secondary" id="blPrev" style="padding:4px 10px; font-size:16px; line-height:1;">‹</button>
+          <span id="blRangeLabel" style="font-size:13px; font-weight:600; min-width:96px; text-align:center;"></span>
+          <button class="btn secondary" id="blNext" style="padding:4px 10px; font-size:16px; line-height:1;">›</button>
+        </div>
+      </div>
+      <div id="blGridWrap"></div>
+      <div class="bl-legend">
+        <span><span class="bl-dot" style="background:#e9d5ff;"></span>RDV</span>
+        <span><span class="bl-dot" style="background:#cfc8f2;"></span>Blocage</span>
+        <span><span class="bl-dot" style="background:#f8fafc; border:1px dashed #c4b5fd;"></span>Libre</span>
+        <span><span class="bl-dot" style="background:#b7a4ef;"></span>À bloquer</span>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn" id="blCreate" style="flex:1;" disabled>Bloquer (0)</button>
+        <button class="btn secondary" id="blClose">Fermer</button>
+      </div>
+      <div style="text-align:center; margin-top:8px;">
+        <button id="blClear" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Effacer la sélection</button>
+      </div>
+    </div>
+  </div>
+
   <div id="trousModal" class="modal-overlay hidden">
     <div class="modal-content">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">
@@ -166,7 +218,7 @@
 
 <script>
 const OAUTH_CLIENT_ID = "962693468865-fpumnvpt5517nfs21kobao8l2ejni1qk.apps.googleusercontent.com";
-const SCOPES = "https://www.googleapis.com/auth/calendar.readonly openid email profile";
+const SCOPES = "https://www.googleapis.com/auth/calendar.events openid email profile";
 const CAL_API = "https://www.googleapis.com/calendar/v3";
 
 let tokenClient = null, accessToken = "", eventsCache = [], selectedIds = new Set(), sendQueue = [], sendIndex = 0;
@@ -211,13 +263,14 @@ function ensureTokenClient(){
     callback: (resp) => {
       if(resp && resp.access_token){
         accessToken = resp.access_token;
-        localStorage.setItem("gcal_access_token", accessToken);
-        localStorage.setItem("gcal_token_expiry", (Date.now() + 3500000).toString());
+        localStorage.setItem("gcal_access_token_v2", accessToken);
+        localStorage.setItem("gcal_token_expiry_v2", (Date.now() + 3500000).toString());
         document.getElementById("btnConnect").classList.add("hidden");
         document.getElementById("btnDisconnect").classList.remove("hidden");
         document.getElementById("btnWeekStats").classList.remove("hidden");
         document.getElementById("btnMonthStats").classList.remove("hidden");
         document.getElementById("btnTrous").classList.remove("hidden");
+        document.getElementById("btnBlocage").classList.remove("hidden");
         fetchAndRenderEvents();
       }
     }
@@ -280,8 +333,8 @@ document.getElementById("btnConnect").onclick = () => { ensureTokenClient(); tok
 // CORRECTION ICI : On ne vide plus toute la mémoire locale
 document.getElementById("btnDisconnect").onclick = () => { 
   accessToken = ""; 
-  localStorage.removeItem("gcal_access_token");
-  localStorage.removeItem("gcal_token_expiry");
+  localStorage.removeItem("gcal_access_token_v2");
+  localStorage.removeItem("gcal_token_expiry_v2");
   location.reload(); 
 };
 
@@ -460,6 +513,151 @@ async function showMonthStats(){
 }
 document.getElementById("btnMonthStats").onclick = () => showMonthStats();
 document.getElementById("btnCloseMonthStats").onclick = () => document.getElementById("monthStatsModal").classList.add("hidden");
+
+/* ===== Blocage de créneaux (création d'événements "Blocage" lavande) ===== */
+const BL_SLOTS = [
+  { sh:9,  sm:0,  eh:10, em:30, label:"9h" },
+  { sh:10, sm:30, eh:12, em:0,  label:"10h30" },
+  { sh:13, sm:30, eh:15, em:0,  label:"13h30" },
+  { sh:15, sm:0,  eh:16, em:30, label:"15h" },
+  { sh:16, sm:30, eh:18, em:0,  label:"16h30" },
+  { sh:18, sm:0,  eh:19, em:30, label:"18h" }
+];
+let blView = "week", blRef = new Date(), blSel = new Set(), blEvents = [];
+
+function blMonday(ref){ const d = new Date(ref); d.setHours(0,0,0,0); const wd = (d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d; }
+function blSlotDates(day, sl){ const s=new Date(day); s.setHours(sl.sh,sl.sm,0,0); const e=new Date(day); e.setHours(sl.eh,sl.em,0,0); return [s,e]; }
+function blDayValid(day){ const wins = workWindowsForDay(day); return BL_SLOTS.map(sl => wins.some(([h1,m1,h2,m2]) => (sl.sh*60+sl.sm)>=(h1*60+m1) && (sl.eh*60+sl.em)<=(h2*60+m2))); }
+function blCellState(day, sl, valid, now){
+  if(!valid) return "off";
+  const [s,e] = blSlotDates(day, sl);
+  if(s < now) return "past";
+  const ev = blEvents.find(x => x.start < e && x.end > s);
+  if(!ev) return "free";
+  if(ev.colorId === "1" || /^blocage/i.test((ev.summary||"").trim())) return "blocage";
+  return "busy";
+}
+function blShorten(str){ str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>24 ? str.slice(0,23)+"…" : str; }
+function blCell(state, sel, key, label, big){
+  const base = "bl-cell" + (big ? " bl-cell-big" : "");
+  if(sel) return `<div class="${base} bl-sel" data-key="${key}">${big ? "Blocage ✓" : "✓"}</div>`;
+  const cls = { off:"bl-off", past:"bl-past", free:"bl-free", busy:"bl-busy", blocage:"bl-blocage" }[state];
+  const click = state==="free" ? `data-key="${key}"` : "";
+  return `<div class="${base} ${cls}" ${click}>${label}</div>`;
+}
+
+async function blLoad(){
+  if(!accessToken) return;
+  const wrap = document.getElementById("blGridWrap");
+  wrap.innerHTML = '<div style="text-align:center; padding:28px; color:var(--muted);">Chargement…</div>';
+  let rangeStart, rangeEnd;
+  if(blView === "week"){ rangeStart = blMonday(blRef); rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeStart.getDate()+6); rangeEnd.setHours(23,59,59,0); }
+  else { rangeStart = new Date(blRef); rangeStart.setHours(0,0,0,0); rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeStart.getDate()+1); }
+  try {
+    const url = `${CAL_API}/calendars/primary/events?timeMin=${rangeStart.toISOString()}&timeMax=${rangeEnd.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=500`;
+    const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
+    const data = await res.json();
+    blEvents = (data.items || []).filter(ev => ev.start.dateTime && ev.end && ev.end.dateTime)
+      .map(ev => ({ start:new Date(ev.start.dateTime), end:new Date(ev.end.dateTime), summary:ev.summary||"", colorId:ev.colorId||"" }));
+    blDraw();
+  } catch(err){ wrap.innerHTML = `<div style="color:var(--danger); padding:16px;">Erreur : ${err.message}</div>`; }
+}
+
+function blDraw(){
+  const wrap = document.getElementById("blGridWrap");
+  const now = new Date();
+  const fmtD = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
+  document.getElementById("blTabWeek").classList.toggle("active", blView==="week");
+  document.getElementById("blTabDay").classList.toggle("active", blView==="day");
+  let html = "";
+  if(blView === "week"){
+    const monday = blMonday(blRef);
+    const days = []; for(let d=0;d<6;d++){ const dd=new Date(monday); dd.setDate(monday.getDate()+d); dd.setHours(0,0,0,0); days.push(dd); }
+    const validByDay = days.map(blDayValid);
+    document.getElementById("blRangeLabel").textContent = `${fmtD(days[0])} – ${fmtD(days[5])}`;
+    const dn = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
+    html += `<div class="bl-grid" style="grid-template-columns:30px repeat(6,1fr);"><div></div>`;
+    days.forEach((d,ci) => html += `<div class="bl-head" data-daycol="${ci}" style="cursor:pointer;">${dn[d.getDay()]}<br>${d.getDate()}</div>`);
+    BL_SLOTS.forEach((sl,ri) => {
+      html += `<div class="bl-time">${sl.label}</div>`;
+      days.forEach((d,ci) => {
+        const st = blCellState(d, sl, validByDay[ci][ri], now);
+        const key = toLocalISO(d)+"_"+ri;
+        html += blCell(st, blSel.has(key), key, "", false);
+      });
+    });
+    html += `</div>`;
+  } else {
+    const day = new Date(blRef); day.setHours(0,0,0,0);
+    const dn = ["dim","lun","mar","mer","jeu","ven","sam"];
+    document.getElementById("blRangeLabel").textContent = `${dn[day.getDay()]}. ${fmtD(day)}`;
+    const valid = blDayValid(day);
+    html += `<div class="bl-grid" style="grid-template-columns:50px 1fr;">`;
+    BL_SLOTS.forEach((sl,ri) => {
+      html += `<div class="bl-time">${sl.label}</div>`;
+      const st = blCellState(day, sl, valid[ri], now);
+      const key = toLocalISO(day)+"_"+ri;
+      let label = "";
+      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary):""; }
+      else if(st==="free") label = "Libre";
+      else if(st==="off") label = "—";
+      html += blCell(st, blSel.has(key), key, label, true);
+    });
+    html += `</div>`;
+  }
+  wrap.innerHTML = html;
+  wrap.querySelectorAll("[data-key]").forEach(el => el.onclick = () => { const k=el.dataset.key; blSel.has(k)?blSel.delete(k):blSel.add(k); blDraw(); });
+  wrap.querySelectorAll("[data-daycol]").forEach(el => el.onclick = () => { const monday=blMonday(blRef); const d=new Date(monday); d.setDate(monday.getDate()+(+el.dataset.daycol)); blRef=d; blView="day"; blLoad(); });
+  const n = blSel.size, btn = document.getElementById("blCreate");
+  btn.textContent = `Bloquer (${n})`; btn.disabled = n===0;
+}
+
+async function blCreate(){
+  if(!blSel.size || !accessToken) return;
+  const byDay = {};
+  blSel.forEach(key => { const i = key.lastIndexOf("_"); const iso = key.slice(0,i), idx = +key.slice(i+1); (byDay[iso] = byDay[iso] || []).push(idx); });
+  const blocks = [];
+  Object.keys(byDay).forEach(iso => {
+    const idxs = byDay[iso].sort((a,b)=>a-b);
+    let i = 0;
+    while(i < idxs.length){
+      let j = i;
+      while(j+1 < idxs.length && idxs[j+1] === idxs[j]+1 && BL_SLOTS[idxs[j]].eh===BL_SLOTS[idxs[j+1]].sh && BL_SLOTS[idxs[j]].em===BL_SLOTS[idxs[j+1]].sm) j++;
+      const day = new Date(iso + "T00:00:00");
+      const s = new Date(day); s.setHours(BL_SLOTS[idxs[i]].sh, BL_SLOTS[idxs[i]].sm, 0, 0);
+      const e = new Date(day); e.setHours(BL_SLOTS[idxs[j]].eh, BL_SLOTS[idxs[j]].em, 0, 0);
+      blocks.push({ start:s, end:e });
+      i = j+1;
+    }
+  });
+  if(!confirm(`Créer ${blocks.length} blocage${blocks.length>1?'s':''} dans l'agenda ?`)) return;
+  const btn = document.getElementById("blCreate"); btn.disabled = true; btn.textContent = "Création…";
+  try {
+    for(const b of blocks){
+      const res = await fetch(`${CAL_API}/calendars/primary/events`, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + accessToken, "Content-Type": "application/json" },
+        body: JSON.stringify({ summary: "Blocage", colorId: "1", start:{ dateTime: b.start.toISOString() }, end:{ dateTime: b.end.toISOString() } })
+      });
+      if(!res.ok){
+        if(res.status === 401 || res.status === 403){ alert("Autorisation d'écriture manquante.\nClique sur « Quitter » puis reconnecte-toi pour autoriser la création de blocages."); return; }
+        throw new Error("HTTP " + res.status);
+      }
+    }
+    blSel.clear();
+    await blLoad();
+  } catch(err){ alert("Erreur lors de la création : " + err.message); }
+  finally { const bn = document.getElementById("blCreate"); bn.textContent = `Bloquer (${blSel.size})`; bn.disabled = blSel.size===0; }
+}
+
+document.getElementById("btnBlocage").onclick = () => { blSel.clear(); blView="week"; blRef=new Date(); document.getElementById("blocageModal").classList.remove("hidden"); blLoad(); };
+document.getElementById("blClose").onclick = () => document.getElementById("blocageModal").classList.add("hidden");
+document.getElementById("blTabWeek").onclick = () => { if(blView!=="week"){ blView="week"; blLoad(); } };
+document.getElementById("blTabDay").onclick = () => { if(blView!=="day"){ blView="day"; blLoad(); } };
+document.getElementById("blPrev").onclick = () => { blRef.setDate(blRef.getDate() - (blView==="week"?7:1)); blLoad(); };
+document.getElementById("blNext").onclick = () => { blRef.setDate(blRef.getDate() + (blView==="week"?7:1)); blLoad(); };
+document.getElementById("blClear").onclick = () => { blSel.clear(); blDraw(); };
+document.getElementById("blCreate").onclick = () => blCreate();
 
 let trousOffset = 0;
 // Fenêtres de travail selon le jour : lundi démarre 10h30, samedi matin seul, dimanche fermé
@@ -642,8 +840,8 @@ document.getElementById("btnCopyMsg").onclick = async () => {
 };
 
 const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
-const t = localStorage.getItem("gcal_access_token"), e = localStorage.getItem("gcal_token_expiry");
-if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); fetchAndRenderEvents(); }
+const t = localStorage.getItem("gcal_access_token_v2"), e = localStorage.getItem("gcal_token_expiry_v2");
+if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); document.getElementById("btnBlocage").classList.remove("hidden"); fetchAndRenderEvents(); }
 </script>
 </body>
 </html>
