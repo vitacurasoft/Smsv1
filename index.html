@@ -179,6 +179,7 @@
         <span><span class="bl-dot" style="background:#f8fafc; border:1px dashed #c4b5fd;"></span>Libre</span>
         <span><span class="bl-dot" style="background:#b7a4ef;"></span>À bloquer</span>
       </div>
+      <div style="text-align:center; font-size:11px; color:var(--muted); margin-top:6px;">Touche une case <b>libre</b> pour la bloquer · touche un <b>blocage</b> pour le retirer.</div>
       <div style="display:flex; gap:8px; margin-top:12px;">
         <button class="btn" id="blCreate" style="flex:1;" disabled>Bloquer (0)</button>
         <button class="btn secondary" id="blClose">Fermer</button>
@@ -538,12 +539,14 @@ function blCellState(day, sl, valid, now){
   return "busy";
 }
 function blShorten(str){ str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>24 ? str.slice(0,23)+"…" : str; }
-function blCell(state, sel, key, label, big){
+function blCell(state, sel, key, label, big, delId){
   const base = "bl-cell" + (big ? " bl-cell-big" : "");
   if(sel) return `<div class="${base} bl-sel" data-key="${key}">${big ? "Blocage ✓" : "✓"}</div>`;
   const cls = { off:"bl-off", past:"bl-past", free:"bl-free", busy:"bl-busy", blocage:"bl-blocage" }[state];
-  const click = state==="free" ? `data-key="${key}"` : "";
-  return `<div class="${base} ${cls}" ${click}>${label}</div>`;
+  let attr = "";
+  if(state==="free") attr = `data-key="${key}"`;
+  else if(state==="blocage" && delId) attr = `data-del="${delId}" style="cursor:pointer;" title="Toucher pour retirer ce blocage"`;
+  return `<div class="${base} ${cls}" ${attr}>${label}</div>`;
 }
 
 async function blLoad(){
@@ -558,7 +561,7 @@ async function blLoad(){
     const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
     const data = await res.json();
     blEvents = (data.items || []).filter(ev => ev.start.dateTime && ev.end && ev.end.dateTime)
-      .map(ev => ({ start:new Date(ev.start.dateTime), end:new Date(ev.end.dateTime), summary:ev.summary||"", colorId:ev.colorId||"" }));
+      .map(ev => ({ id:ev.id, start:new Date(ev.start.dateTime), end:new Date(ev.end.dateTime), summary:ev.summary||"", colorId:ev.colorId||"" }));
     blDraw();
   } catch(err){ wrap.innerHTML = `<div style="color:var(--danger); padding:16px;">Erreur : ${err.message}</div>`; }
 }
@@ -583,7 +586,9 @@ function blDraw(){
       days.forEach((d,ci) => {
         const st = blCellState(d, sl, validByDay[ci][ri], now);
         const key = toLocalISO(d)+"_"+ri;
-        html += blCell(st, blSel.has(key), key, "", false);
+        let del = null;
+        if(st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); del = ev?ev.id:null; }
+        html += blCell(st, blSel.has(key), key, "", false, del);
       });
     });
     html += `</div>`;
@@ -597,19 +602,33 @@ function blDraw(){
       html += `<div class="bl-time">${sl.label}</div>`;
       const st = blCellState(day, sl, valid[ri], now);
       const key = toLocalISO(day)+"_"+ri;
-      let label = "";
-      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary):""; }
+      let label = "", del = null;
+      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary):""; if(st==="blocage" && ev){ del = ev.id; label += "  ✕"; } }
       else if(st==="free") label = "Libre";
       else if(st==="off") label = "—";
-      html += blCell(st, blSel.has(key), key, label, true);
+      html += blCell(st, blSel.has(key), key, label, true, del);
     });
     html += `</div>`;
   }
   wrap.innerHTML = html;
   wrap.querySelectorAll("[data-key]").forEach(el => el.onclick = () => { const k=el.dataset.key; blSel.has(k)?blSel.delete(k):blSel.add(k); blDraw(); });
+  wrap.querySelectorAll("[data-del]").forEach(el => el.onclick = () => blDelete(el.dataset.del));
   wrap.querySelectorAll("[data-daycol]").forEach(el => el.onclick = () => { const monday=blMonday(blRef); const d=new Date(monday); d.setDate(monday.getDate()+(+el.dataset.daycol)); blRef=d; blView="day"; blLoad(); });
   const n = blSel.size, btn = document.getElementById("blCreate");
   btn.textContent = `Bloquer (${n})`; btn.disabled = n===0;
+}
+
+async function blDelete(id){
+  if(!id || !accessToken) return;
+  if(!confirm("Retirer ce blocage de l'agenda ?")) return;
+  try {
+    const res = await fetch(`${CAL_API}/calendars/primary/events/${id}`, { method:"DELETE", headers:{ "Authorization":"Bearer "+accessToken } });
+    if(!res.ok && res.status !== 410){
+      if(res.status===401 || res.status===403){ alert("Autorisation d'écriture manquante.\nClique sur « Quitter » puis reconnecte-toi."); return; }
+      throw new Error("HTTP " + res.status);
+    }
+    await blLoad();
+  } catch(err){ alert("Erreur lors de la suppression : " + err.message); }
 }
 
 async function blCreate(){
