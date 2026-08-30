@@ -54,6 +54,7 @@
     .bl-grid { display:grid; gap:4px; }
     .bl-cell { min-height:46px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1.15; text-align:center; user-select:none; padding:2px; overflow:hidden; }
     .bl-cell-big { min-height:52px; justify-content:flex-start; text-align:left; padding:6px 10px; font-size:13px; }
+    .bl-mini { font-size:9px; line-height:1.12; word-break:break-word; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; padding:1px 2px; }
     .bl-head { font-size:11px; font-weight:700; color:var(--muted); text-align:center; line-height:1.15; }
     .bl-time { font-size:11px; font-weight:600; color:var(--muted); display:flex; align-items:center; justify-content:flex-end; padding-right:4px; }
     .bl-free { background:#f8fafc; border:1px dashed #c4b5fd; color:#a78bda; cursor:pointer; }
@@ -538,7 +539,7 @@ function blCellState(day, sl, valid, now){
   if(ev.colorId === "1" || /^blocage/i.test((ev.summary||"").trim())) return "blocage";
   return "busy";
 }
-function blShorten(str){ str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>24 ? str.slice(0,23)+"…" : str; }
+function blShorten(str, max){ max = max || 24; str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>max ? str.slice(0,max-1)+"…" : str; }
 function blCell(state, sel, key, label, big, delId){
   const base = "bl-cell" + (big ? " bl-cell-big" : "");
   if(sel) return `<div class="${base} bl-sel" data-key="${key}">${big ? "Blocage ✓" : "✓"}</div>`;
@@ -546,7 +547,8 @@ function blCell(state, sel, key, label, big, delId){
   let attr = "";
   if(state==="free") attr = `data-key="${key}"`;
   else if(state==="blocage" && delId) attr = `data-del="${delId}" style="cursor:pointer;" title="Toucher pour retirer ce blocage"`;
-  return `<div class="${base} ${cls}" ${attr}>${label}</div>`;
+  const inner = (label && !big) ? `<span class="bl-mini">${label}</span>` : label;
+  return `<div class="${base} ${cls}" ${attr}>${inner}</div>`;
 }
 
 async function blLoad(){
@@ -586,9 +588,9 @@ function blDraw(){
       days.forEach((d,ci) => {
         const st = blCellState(d, sl, validByDay[ci][ri], now);
         const key = toLocalISO(d)+"_"+ri;
-        let del = null;
-        if(st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); del = ev?ev.id:null; }
-        html += blCell(st, blSel.has(key), key, "", false, del);
+        let del = null, lbl = "";
+        if(st==="busy" || st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); lbl = ev?blShorten(ev.summary,20):""; if(st==="blocage"&&ev) del = ev.id; }
+        html += blCell(st, blSel.has(key), key, lbl, false, del);
       });
     });
     html += `</div>`;
