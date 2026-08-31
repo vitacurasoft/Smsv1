@@ -548,13 +548,16 @@ function blMonday(ref){ const d = new Date(ref); d.setHours(0,0,0,0); const wd =
 function blSlotDates(day, sl){ const s=new Date(day); s.setHours(sl.sh,sl.sm,0,0); const e=new Date(day); e.setHours(sl.eh,sl.em,0,0); return [s,e]; }
 function blDayValid(day){ const wins = workWindowsForDay(day); return BL_SLOTS.map(sl => wins.some(([h1,m1,h2,m2]) => (sl.sh*60+sl.sm)>=(h1*60+m1) && (sl.eh*60+sl.em)<=(h2*60+m2))); }
 function blCellState(day, sl, valid, now){
-  if(!valid) return "off";
   const [s,e] = blSlotDates(day, sl);
-  if(s < now) return "past";
   const ev = blEvents.find(x => x.start < e && x.end > s);
+  const kind = (ev && (ev.colorId === "1" || /^blocage/i.test((ev.summary||"").trim()))) ? "blocage" : "busy";
+  if(!valid){
+    // Créneau hors horaires : affiché seulement s'il porte une réservation (ex. lundi 9h réservé)
+    return ev ? kind : "off";
+  }
+  if(s < now) return "past";
   if(!ev) return "free";
-  if(ev.colorId === "1" || /^blocage/i.test((ev.summary||"").trim())) return "blocage";
-  return "busy";
+  return kind;
 }
 function blShorten(str, max){ max = max || 24; str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>max ? str.slice(0,max-1)+"…" : str; }
 function blCell(state, sel, key, label, big, delId, colorId){
