@@ -21,7 +21,7 @@
     html, body { overflow-x: hidden; width: 100%; }
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.4; -webkit-font-smoothing: antialiased; }
     header { background: var(--surface); border-bottom: 1px solid var(--stroke); padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 50; gap: 8px; }
-    .header-left, .header-right { display: flex; align-items: center; gap: 8px; }
+    .header-left, .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     select, input[type="text"], input[type="date"], textarea { padding: 6px 8px; border: 1px solid var(--stroke); border-radius: 6px; font-size: 13px; outline: none; background: #f1f5f9; color: var(--text); }
     .wrap { max-width: 600px; margin: 0 auto; padding: 12px 12px 80px; }
     .title-row { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
@@ -83,6 +83,7 @@
       <button class="btn secondary hidden" id="btnMonthStats" style="padding: 6px 10px;" title="Bilan du mois">📅</button>
       <button class="btn secondary hidden" id="btnTrous" style="padding: 6px 10px;" title="Trous disponibles cette semaine">🕳️</button>
       <button class="btn secondary hidden" id="btnBlocage" style="padding: 6px 10px;" title="Bloquer des créneaux">🔒</button>
+      <button class="btn secondary hidden" id="btnSearch" style="padding: 6px 10px;" title="Rechercher un patient">🔍</button>
       <button class="btn secondary" id="btnConnect" style="padding: 6px 10px;">Connexion</button>
       <button class="btn secondary hidden" id="btnDisconnect" style="padding: 6px 10px;">Quitter</button>
     </div>
@@ -169,7 +170,7 @@
         </div>
         <div class="bl-nav">
           <button class="btn secondary" id="blPrev" style="padding:4px 10px; font-size:16px; line-height:1;">‹</button>
-          <span id="blRangeLabel" style="font-size:13px; font-weight:600; min-width:96px; text-align:center;"></span>
+          <span id="blRangeLabel" style="font-size:13px; font-weight:600; min-width:132px; text-align:center;"></span>
           <button class="btn secondary" id="blNext" style="padding:4px 10px; font-size:16px; line-height:1;">›</button>
         </div>
       </div>
@@ -189,6 +190,20 @@
       </div>
       <div style="text-align:center; margin-top:8px;">
         <button id="blClear" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Effacer la sélection</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="searchModal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; gap:8px;">
+        <h2 style="margin:0; font-size:16px;">Rechercher un patient</h2>
+        <button id="btnRefreshSearch" class="btn secondary" style="padding:4px 10px; font-size:14px; line-height:1;" title="Recharger l'agenda">↻</button>
+      </div>
+      <input id="searchInput" type="text" placeholder="Premières lettres du nom…" autocomplete="off" style="width:100%; margin-bottom:10px; font-size:15px; padding:10px 12px;">
+      <div id="searchResults" style="max-height:52vh; overflow-y:auto; font-size:13px;"></div>
+      <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+        <button class="btn" id="btnCloseSearch">Fermer</button>
       </div>
     </div>
   </div>
@@ -275,6 +290,7 @@ function ensureTokenClient(){
         document.getElementById("btnMonthStats").classList.remove("hidden");
         document.getElementById("btnTrous").classList.remove("hidden");
         document.getElementById("btnBlocage").classList.remove("hidden");
+        document.getElementById("btnSearch").classList.remove("hidden");
         fetchAndRenderEvents();
       }
     }
@@ -545,6 +561,7 @@ const BL_COLORS = {
 };
 
 function blMonday(ref){ const d = new Date(ref); d.setHours(0,0,0,0); const wd = (d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d; }
+function blIsoWeek(d){ const t = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = (t.getDay()+6)%7; t.setDate(t.getDate()-day+3); const firstThu = new Date(t.getFullYear(),0,4); const fday = (firstThu.getDay()+6)%7; firstThu.setDate(firstThu.getDate()-fday+3); return 1 + Math.round((t-firstThu)/604800000); }
 function blSlotDates(day, sl){ const s=new Date(day); s.setHours(sl.sh,sl.sm,0,0); const e=new Date(day); e.setHours(sl.eh,sl.em,0,0); return [s,e]; }
 function blDayValid(day){ const wins = workWindowsForDay(day); return BL_SLOTS.map(sl => wins.some(([h1,m1,h2,m2]) => (sl.sh*60+sl.sm)>=(h1*60+m1) && (sl.eh*60+sl.em)<=(h2*60+m2))); }
 function blCellState(day, sl, valid, now){
@@ -604,7 +621,7 @@ function blDraw(){
     const monday = blMonday(blRef);
     const days = []; for(let d=0;d<6;d++){ const dd=new Date(monday); dd.setDate(monday.getDate()+d); dd.setHours(0,0,0,0); days.push(dd); }
     const validByDay = days.map(blDayValid);
-    document.getElementById("blRangeLabel").textContent = `${fmtD(days[0])} – ${fmtD(days[5])}`;
+    document.getElementById("blRangeLabel").textContent = `S${blIsoWeek(days[0])} · ${fmtD(days[0])} – ${fmtD(days[5])}`;
     const dn = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
     html += `<div class="bl-grid" style="grid-template-columns:30px repeat(6,1fr);"><div></div>`;
     days.forEach((d,ci) => html += `<div class="bl-head" data-daycol="${ci}" style="cursor:pointer;">${dn[d.getDay()]}<br>${d.getDate()}</div>`);
@@ -704,6 +721,63 @@ document.getElementById("blPrev").onclick = () => { blRef.setDate(blRef.getDate(
 document.getElementById("blNext").onclick = () => { blRef.setDate(blRef.getDate() + (blView==="week"?7:1)); blLoad(); };
 document.getElementById("blClear").onclick = () => { blSel.clear(); blDraw(); };
 document.getElementById("blCreate").onclick = () => blCreate();
+
+/* ===== Recherche par nom sur le calendrier (année N et N+1) ===== */
+let searchAll = null, searchLoading = false;
+function sEsc(s){ return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+async function searchFetchAll(){
+  const now = new Date();
+  const timeMin = new Date(now.getFullYear(), 0, 1).toISOString();      // 1er janvier de l'année en cours
+  const timeMax = new Date(now.getFullYear()+2, 0, 1).toISOString();    // 1er janvier N+2 (couvre N et N+1)
+  const out = []; let pageToken = "";
+  do {
+    const url = `${CAL_API}/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500${pageToken?`&pageToken=${encodeURIComponent(pageToken)}`:""}`;
+    const res = await fetch(url, { headers:{ "Authorization":"Bearer "+accessToken } });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    (data.items||[]).forEach(ev => {
+      if(!ev.start || !(ev.start.dateTime || ev.start.date)) return;
+      out.push({ date: new Date(ev.start.dateTime || (ev.start.date + "T00:00:00")), allDay: !ev.start.dateTime, summary: ev.summary || "(sans titre)" });
+    });
+    pageToken = data.nextPageToken || "";
+  } while(pageToken);
+  return out;
+}
+function renderSearch(){
+  const box = document.getElementById("searchResults");
+  if(!searchAll) return;
+  const q = document.getElementById("searchInput").value.trim().toLowerCase();
+  if(q.length < 2){ box.innerHTML = '<div style="color:var(--muted); padding:12px; text-align:center;">Tapez au moins 2 lettres.</div>'; return; }
+  const now = new Date();
+  const cap = (s)=>s.charAt(0).toUpperCase()+s.slice(1);
+  const matches = searchAll.filter(e => e.summary.toLowerCase().includes(q)).sort((a,b)=>a.date-b.date);
+  if(!matches.length){ box.innerHTML = '<div style="color:var(--muted); padding:12px; text-align:center;">Aucun résultat.</div>'; return; }
+  box.innerHTML = `<div style="color:var(--muted); font-size:12px; margin:2px 0 8px;">${matches.length} résultat${matches.length>1?'s':''}</div>` + matches.map(e => {
+    const d = e.date;
+    const when = e.allDay
+      ? `${cap(frDayName(d))} ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`
+      : `${cap(frDayName(d))} ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} · ${d.getHours()}h${d.getMinutes()?pad2(d.getMinutes()):''}`;
+    return `<div style="padding:8px 4px; border-bottom:1px solid var(--stroke);${d<now?' opacity:0.5;':''}">
+      <div style="font-weight:600; color:var(--primary);">${when}</div>
+      <div>${sEsc(blShorten(e.summary, 44))}</div>
+    </div>`;
+  }).join('');
+}
+async function openSearch(){
+  document.getElementById("searchModal").classList.remove("hidden");
+  const inp = document.getElementById("searchInput"), box = document.getElementById("searchResults");
+  if(searchAll){ renderSearch(); inp.focus(); return; }
+  if(searchLoading) return;
+  searchLoading = true;
+  box.innerHTML = '<div style="color:var(--muted); padding:16px; text-align:center;">Chargement de l\'agenda…</div>';
+  try { searchAll = await searchFetchAll(); renderSearch(); inp.focus(); }
+  catch(err){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Erreur : ${err.message}</div>`; }
+  finally { searchLoading = false; }
+}
+document.getElementById("btnSearch").onclick = () => openSearch();
+document.getElementById("searchInput").oninput = () => renderSearch();
+document.getElementById("btnCloseSearch").onclick = () => document.getElementById("searchModal").classList.add("hidden");
+document.getElementById("btnRefreshSearch").onclick = () => { searchAll = null; openSearch(); };
 
 let trousOffset = 0;
 // Fenêtres de travail selon le jour : lundi démarre 10h30, samedi matin seul, dimanche fermé
@@ -887,7 +961,7 @@ document.getElementById("btnCopyMsg").onclick = async () => {
 
 const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
 const t = localStorage.getItem("gcal_access_token_v2"), e = localStorage.getItem("gcal_token_expiry_v2");
-if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); document.getElementById("btnBlocage").classList.remove("hidden"); fetchAndRenderEvents(); }
+if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); document.getElementById("btnBlocage").classList.remove("hidden"); document.getElementById("btnSearch").classList.remove("hidden"); fetchAndRenderEvents(); }
 </script>
 </body>
 </html>
