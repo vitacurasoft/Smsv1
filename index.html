@@ -561,7 +561,8 @@ const BL_COLORS = {
 };
 
 function blMonday(ref){ const d = new Date(ref); d.setHours(0,0,0,0); const wd = (d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d; }
-function blIsoWeek(d){ const t = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = (t.getDay()+6)%7; t.setDate(t.getDate()-day+3); const firstThu = new Date(t.getFullYear(),0,4); const fday = (firstThu.getDay()+6)%7; firstThu.setDate(firstThu.getDate()-fday+3); return 1 + Math.round((t-firstThu)/604800000); }
+// Semaine dans le mois (1 à 5) d'après le jeudi de la semaine -> le mois "propriétaire" a 4 ou 5 jeudis
+function blWeekOfMonth(mondayDate){ const thu = new Date(mondayDate); thu.setDate(mondayDate.getDate()+3); const firstWeekday = (new Date(thu.getFullYear(), thu.getMonth(), 1).getDay()+6)%7; const firstThu = 1 + ((3 - firstWeekday + 7) % 7); return Math.floor((thu.getDate() - firstThu)/7) + 1; }
 function blSlotDates(day, sl){ const s=new Date(day); s.setHours(sl.sh,sl.sm,0,0); const e=new Date(day); e.setHours(sl.eh,sl.em,0,0); return [s,e]; }
 function blDayValid(day){ const wins = workWindowsForDay(day); return BL_SLOTS.map(sl => wins.some(([h1,m1,h2,m2]) => (sl.sh*60+sl.sm)>=(h1*60+m1) && (sl.eh*60+sl.em)<=(h2*60+m2))); }
 function blCellState(day, sl, valid, now){
@@ -621,7 +622,7 @@ function blDraw(){
     const monday = blMonday(blRef);
     const days = []; for(let d=0;d<6;d++){ const dd=new Date(monday); dd.setDate(monday.getDate()+d); dd.setHours(0,0,0,0); days.push(dd); }
     const validByDay = days.map(blDayValid);
-    document.getElementById("blRangeLabel").textContent = `S${blIsoWeek(days[0])} · ${fmtD(days[0])} – ${fmtD(days[5])}`;
+    document.getElementById("blRangeLabel").textContent = `Sem. ${blWeekOfMonth(days[0])} · ${fmtD(days[0])} – ${fmtD(days[5])}`;
     const dn = ["Dim","Lun","Mar","Mer","Jeu","Ven","Sam"];
     html += `<div class="bl-grid" style="grid-template-columns:30px repeat(6,1fr);"><div></div>`;
     days.forEach((d,ci) => html += `<div class="bl-head" data-daycol="${ci}" style="cursor:pointer;">${dn[d.getDay()]}<br>${d.getDate()}</div>`);
