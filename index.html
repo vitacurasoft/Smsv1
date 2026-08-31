@@ -175,8 +175,10 @@
       </div>
       <div id="blGridWrap"></div>
       <div class="bl-legend">
-        <span><span class="bl-dot" style="background:#e9d5ff;"></span>RDV</span>
-        <span><span class="bl-dot" style="background:#cfc8f2;"></span>Blocage</span>
+        <span><span class="bl-dot" style="background:#a7e8c8;"></span>Enfant</span>
+        <span><span class="bl-dot" style="background:#ffb3aa;"></span>Étudiant</span>
+        <span><span class="bl-dot" style="background:#e0c2f4;"></span>Adulte</span>
+        <span><span class="bl-dot" style="background:#c7ccf2;"></span>Blocage</span>
         <span><span class="bl-dot" style="background:#f8fafc; border:1px dashed #c4b5fd;"></span>Libre</span>
         <span><span class="bl-dot" style="background:#b7a4ef;"></span>À bloquer</span>
       </div>
@@ -526,6 +528,21 @@ const BL_SLOTS = [
   { sh:18, sm:0,  eh:19, em:30, label:"18h" }
 ];
 let blView = "week", blRef = new Date(), blSel = new Set(), blEvents = [];
+// Couleurs des événements = mêmes couleurs que l'agenda (colorId Google Calendar)
+const BL_COLORS = {
+  "1":  { bg:"#c7ccf2", tx:"#2f3a86" }, // Lavande (blocage)
+  "2":  { bg:"#a7e8c8", tx:"#0b6b43" }, // Sauge / enfant (vert)
+  "3":  { bg:"#e0c2f4", tx:"#7b1fa2" }, // Raisin / adulte (violet)
+  "4":  { bg:"#ffb3aa", tx:"#8f2c1d" }, // Flamant / étudiant (saumon)
+  "5":  { bg:"#fbe08a", tx:"#7a5c00" },
+  "6":  { bg:"#ffb59a", tx:"#8a3312" },
+  "7":  { bg:"#a9dcf0", tx:"#04638c" },
+  "8":  { bg:"#cfcfcf", tx:"#3a3a3a" },
+  "9":  { bg:"#b7bdf0", tx:"#2a3399" },
+  "10": { bg:"#8fd6ad", tx:"#0a5f31" },
+  "11": { bg:"#f4a6a6", tx:"#a01818" },
+  "":   { bg:"#e2e8f0", tx:"#475569" }  // sans couleur définie
+};
 
 function blMonday(ref){ const d = new Date(ref); d.setHours(0,0,0,0); const wd = (d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d; }
 function blSlotDates(day, sl){ const s=new Date(day); s.setHours(sl.sh,sl.sm,0,0); const e=new Date(day); e.setHours(sl.eh,sl.em,0,0); return [s,e]; }
@@ -540,15 +557,20 @@ function blCellState(day, sl, valid, now){
   return "busy";
 }
 function blShorten(str, max){ max = max || 24; str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>max ? str.slice(0,max-1)+"…" : str; }
-function blCell(state, sel, key, label, big, delId){
+function blCell(state, sel, key, label, big, delId, colorId){
   const base = "bl-cell" + (big ? " bl-cell-big" : "");
   if(sel) return `<div class="${base} bl-sel" data-key="${key}">${big ? "Blocage ✓" : "✓"}</div>`;
-  const cls = { off:"bl-off", past:"bl-past", free:"bl-free", busy:"bl-busy", blocage:"bl-blocage" }[state];
-  let attr = "";
-  if(state==="free") attr = `data-key="${key}"`;
-  else if(state==="blocage" && delId) attr = `data-del="${delId}" style="cursor:pointer;" title="Toucher pour retirer ce blocage"`;
+  let cls = "", style = "", attr = "";
+  if(state==="off") cls = "bl-off";
+  else if(state==="past") cls = "bl-past";
+  else if(state==="free"){ cls = "bl-free"; attr = `data-key="${key}"`; }
+  else { // busy ou blocage : couleur selon l'agenda (colorId)
+    const c = BL_COLORS[state==="blocage" ? "1" : (colorId||"")] || BL_COLORS[""];
+    style = `background:${c.bg}; color:${c.tx};`;
+    if(state==="blocage" && delId){ attr = `data-del="${delId}" title="Toucher pour retirer ce blocage"`; style += " cursor:pointer;"; }
+  }
   const inner = (label && !big) ? `<span class="bl-mini">${label}</span>` : label;
-  return `<div class="${base} ${cls}" ${attr}>${inner}</div>`;
+  return `<div class="${base} ${cls}" style="${style}" ${attr}>${inner}</div>`;
 }
 
 async function blLoad(){
@@ -588,9 +610,9 @@ function blDraw(){
       days.forEach((d,ci) => {
         const st = blCellState(d, sl, validByDay[ci][ri], now);
         const key = toLocalISO(d)+"_"+ri;
-        let del = null, lbl = "";
-        if(st==="busy" || st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); lbl = ev?blShorten(ev.summary,20):""; if(st==="blocage"&&ev) del = ev.id; }
-        html += blCell(st, blSel.has(key), key, lbl, false, del);
+        let del = null, lbl = "", cId = "";
+        if(st==="busy" || st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); lbl = ev?blShorten(ev.summary,20):""; cId = ev?ev.colorId:""; if(st==="blocage"&&ev) del = ev.id; }
+        html += blCell(st, blSel.has(key), key, lbl, false, del, cId);
       });
     });
     html += `</div>`;
@@ -604,11 +626,11 @@ function blDraw(){
       html += `<div class="bl-time">${sl.label}</div>`;
       const st = blCellState(day, sl, valid[ri], now);
       const key = toLocalISO(day)+"_"+ri;
-      let label = "", del = null;
-      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary, 80):""; if(st==="blocage" && ev){ del = ev.id; label += "  ✕"; } }
+      let label = "", del = null, cId = "";
+      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary, 80):""; cId = ev?ev.colorId:""; if(st==="blocage" && ev){ del = ev.id; label += "  ✕"; } }
       else if(st==="free") label = "Libre";
       else if(st==="off") label = "—";
-      html += blCell(st, blSel.has(key), key, label, true, del);
+      html += blCell(st, blSel.has(key), key, label, true, del, cId);
     });
     html += `</div>`;
   }
