@@ -721,6 +721,21 @@ document.getElementById("blTabDay").onclick = () => { if(blView!=="day"){ blView
 document.getElementById("blPrev").onclick = () => { blRef.setDate(blRef.getDate() - (blView==="week"?7:1)); blLoad(); };
 document.getElementById("blNext").onclick = () => { blRef.setDate(blRef.getDate() + (blView==="week"?7:1)); blLoad(); };
 document.getElementById("blClear").onclick = () => { blSel.clear(); blDraw(); };
+// Navigation par glissement de doigt (swipe) : droite->gauche = suivant, gauche->droite = précédent
+(function(){
+  const wrap = document.getElementById("blGridWrap");
+  let sx = 0, sy = 0, tracking = false;
+  wrap.addEventListener("touchstart", (e) => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; tracking = true; }, { passive:true });
+  wrap.addEventListener("touchend", (e) => {
+    if(!tracking) return; tracking = false;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4){
+      const step = (blView === "week" ? 7 : 1);
+      blRef.setDate(blRef.getDate() + (dx < 0 ? step : -step));
+      blLoad();
+    }
+  }, { passive:true });
+})();
 document.getElementById("blCreate").onclick = () => blCreate();
 
 /* ===== Recherche par nom sur le calendrier (année N et N+1) ===== */
