@@ -55,6 +55,14 @@
     .bl-cell { min-height:46px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1.15; text-align:center; user-select:none; padding:2px; overflow:hidden; }
     .bl-cell-big { min-height:52px; justify-content:flex-start; text-align:left; padding:6px 10px; font-size:13px; }
     .bl-mini { font-size:9px; line-height:1.12; word-break:break-word; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; padding:1px 2px; }
+    .bl-out-next { transform-origin:left center; animation: blFlipOut .22s ease-in forwards; }
+    .bl-in-next  { transform-origin:right center; animation: blFlipInR .26s ease-out; }
+    .bl-out-prev { transform-origin:right center; animation: blFlipOutR .22s ease-in forwards; }
+    .bl-in-prev  { transform-origin:left center; animation: blFlipInL .26s ease-out; }
+    @keyframes blFlipOut  { to   { transform: perspective(900px) rotateY(-88deg); opacity:.15; } }
+    @keyframes blFlipInR  { from { transform: perspective(900px) rotateY(88deg);  opacity:.15; } }
+    @keyframes blFlipOutR { to   { transform: perspective(900px) rotateY(88deg);  opacity:.15; } }
+    @keyframes blFlipInL  { from { transform: perspective(900px) rotateY(-88deg); opacity:.15; } }
     .bl-head { font-size:11px; font-weight:700; color:var(--muted); text-align:center; line-height:1.15; }
     .bl-time { font-size:11px; font-weight:600; color:var(--muted); display:flex; align-items:center; justify-content:flex-end; padding-right:4px; }
     .bl-free { background:#f8fafc; border:1px dashed #c4b5fd; color:#a78bda; cursor:pointer; }
@@ -595,21 +603,42 @@ function blCell(state, sel, key, label, big, delId, colorId){
   return `<div class="${base} ${cls}" style="${style}" ${attr}>${inner}</div>`;
 }
 
+async function blFetch(){
+  if(!accessToken){ blEvents = []; return; }
+  let rangeStart, rangeEnd;
+  if(blView === "week"){ rangeStart = blMonday(blRef); rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeStart.getDate()+6); rangeEnd.setHours(23,59,59,0); }
+  else { rangeStart = new Date(blRef); rangeStart.setHours(0,0,0,0); rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeStart.getDate()+1); }
+  const url = `${CAL_API}/calendars/primary/events?timeMin=${rangeStart.toISOString()}&timeMax=${rangeEnd.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=500`;
+  const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
+  const data = await res.json();
+  blEvents = (data.items || []).filter(ev => ev.start.dateTime && ev.end && ev.end.dateTime)
+    .map(ev => ({ id:ev.id, start:new Date(ev.start.dateTime), end:new Date(ev.end.dateTime), summary:ev.summary||"", colorId:ev.colorId||"" }));
+}
 async function blLoad(){
   if(!accessToken) return;
   const wrap = document.getElementById("blGridWrap");
   wrap.innerHTML = '<div style="text-align:center; padding:28px; color:var(--muted);">Chargement…</div>';
-  let rangeStart, rangeEnd;
-  if(blView === "week"){ rangeStart = blMonday(blRef); rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeStart.getDate()+6); rangeEnd.setHours(23,59,59,0); }
-  else { rangeStart = new Date(blRef); rangeStart.setHours(0,0,0,0); rangeEnd = new Date(rangeStart); rangeEnd.setDate(rangeStart.getDate()+1); }
-  try {
-    const url = `${CAL_API}/calendars/primary/events?timeMin=${rangeStart.toISOString()}&timeMax=${rangeEnd.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=500`;
-    const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
-    const data = await res.json();
-    blEvents = (data.items || []).filter(ev => ev.start.dateTime && ev.end && ev.end.dateTime)
-      .map(ev => ({ id:ev.id, start:new Date(ev.start.dateTime), end:new Date(ev.end.dateTime), summary:ev.summary||"", colorId:ev.colorId||"" }));
-    blDraw();
-  } catch(err){ wrap.innerHTML = `<div style="color:var(--danger); padding:16px;">Erreur : ${err.message}</div>`; }
+  try { await blFetch(); blDraw(); }
+  catch(err){ wrap.innerHTML = `<div style="color:var(--danger); padding:16px;">Erreur : ${err.message}</div>`; }
+}
+// Changement de semaine/jour avec animation "page qui tourne" (~0,5 s) qui masque le micro-chargement
+let blAnimating = false;
+async function blNavigate(dir){
+  if(blAnimating || !accessToken) return; blAnimating = true;
+  const wrap = document.getElementById("blGridWrap");
+  const outCls = dir>0 ? "bl-out-next" : "bl-out-prev";
+  const inCls  = dir>0 ? "bl-in-next"  : "bl-in-prev";
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  blRef.setDate(blRef.getDate() + dir * (blView==="week"?7:1));
+  const fetchP = blFetch().catch(() => { blEvents = []; });
+  wrap.classList.add(outCls);
+  await Promise.all([ fetchP, wait(230) ]);  // fin de la sortie + données prêtes (la page reste "de dos" si le fetch traîne)
+  wrap.classList.remove(outCls);
+  blDraw();               // nouveau contenu
+  wrap.classList.add(inCls);   // même tick -> pas de flash à l'état normal
+  await wait(280);
+  wrap.classList.remove(inCls);
+  blAnimating = false;
 }
 
 function blDraw(){
@@ -719,8 +748,8 @@ document.getElementById("btnBlocage").onclick = () => { blSel.clear(); blView="w
 document.getElementById("blClose").onclick = () => document.getElementById("blocageModal").classList.add("hidden");
 document.getElementById("blTabWeek").onclick = () => { if(blView!=="week"){ blView="week"; blLoad(); } };
 document.getElementById("blTabDay").onclick = () => { if(blView!=="day"){ blView="day"; blLoad(); } };
-document.getElementById("blPrev").onclick = () => { blRef.setDate(blRef.getDate() - (blView==="week"?7:1)); blLoad(); };
-document.getElementById("blNext").onclick = () => { blRef.setDate(blRef.getDate() + (blView==="week"?7:1)); blLoad(); };
+document.getElementById("blPrev").onclick = () => blNavigate(-1);
+document.getElementById("blNext").onclick = () => blNavigate(1);
 document.getElementById("blClear").onclick = () => { blSel.clear(); blDraw(); };
 // Navigation par glissement de doigt (swipe) : droite->gauche = suivant, gauche->droite = précédent
 (function(){
@@ -731,9 +760,7 @@ document.getElementById("blClear").onclick = () => { blSel.clear(); blDraw(); };
     if(!tracking) return; tracking = false;
     const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
     if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4){
-      const step = (blView === "week" ? 7 : 1);
-      blRef.setDate(blRef.getDate() + (dx < 0 ? step : -step));
-      blLoad();
+      blNavigate(dx < 0 ? 1 : -1);
     }
   }, { passive:true });
 })();
