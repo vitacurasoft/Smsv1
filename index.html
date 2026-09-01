@@ -293,7 +293,8 @@ function ensureTokenClient(){
         document.getElementById("btnSearch").classList.remove("hidden");
         fetchAndRenderEvents();
       }
-    }
+    },
+    error_callback: () => { /* reconnexion silencieuse impossible : le bouton "Connexion" reste disponible */ }
   });
 }
 
@@ -976,8 +977,26 @@ document.getElementById("btnCopyMsg").onclick = async () => {
 };
 
 const tom = new Date(); tom.setDate(tom.getDate() + 1); document.getElementById("datePick").value = toLocalISO(tom);
+// Reconnexion silencieuse : redemande un jeton sans clic ni popup si la session Google est active et le consentement déjà donné
+let lastSilent = 0;
+function trySilentAuth(){
+  const now = Date.now();
+  if(now - lastSilent < 20000) return; // au plus une tentative toutes les 20 s
+  lastSilent = now;
+  const go = () => { try { ensureTokenClient(); tokenClient.requestAccessToken({ prompt: "" }); } catch(err){} };
+  if(window.google && google.accounts && google.accounts.oauth2){ go(); }
+  else { let n = 0; const iv = setInterval(() => { if(window.google && google.accounts && google.accounts.oauth2){ clearInterval(iv); go(); } else if(++n > 50){ clearInterval(iv); } }, 100); }
+}
 const t = localStorage.getItem("gcal_access_token_v2"), e = localStorage.getItem("gcal_token_expiry_v2");
 if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); document.getElementById("btnBlocage").classList.remove("hidden"); document.getElementById("btnSearch").classList.remove("hidden"); fetchAndRenderEvents(); }
+else { trySilentAuth(); window.addEventListener("pointerdown", function reArm(){ if(!accessToken){ lastSilent = 0; trySilentAuth(); } }, { once:true }); }
+// Au retour de l'appli au premier plan, on rafraîchit silencieusement le jeton s'il a expiré (utile pour une PWA laissée en arrière-plan)
+document.addEventListener("visibilitychange", () => {
+  if(document.visibilityState === "visible"){
+    const exp = parseInt(localStorage.getItem("gcal_token_expiry_v2") || "0");
+    if(!accessToken || Date.now() >= exp) trySilentAuth();
+  }
+});
 </script>
 </body>
 </html>
