@@ -92,6 +92,7 @@
       <button class="btn secondary hidden" id="btnTrous" style="padding: 6px 10px;" title="Trous disponibles cette semaine">🕳️</button>
       <button class="btn secondary hidden" id="btnBlocage" style="padding: 6px 10px;" title="Bloquer des créneaux">🔒</button>
       <button class="btn secondary hidden" id="btnSearch" style="padding: 6px 10px;" title="Rechercher un patient">🔍</button>
+      <button class="btn secondary hidden" id="btnSync" style="padding: 6px 10px;" title="Prochains RDV par client (aperçu VITACURA)">🔄</button>
       <button class="btn secondary" id="btnConnect" style="padding: 6px 10px;">Connexion</button>
       <button class="btn secondary hidden" id="btnDisconnect" style="padding: 6px 10px;">Quitter</button>
     </div>
@@ -216,6 +217,21 @@
     </div>
   </div>
 
+  <div id="syncModal" class="modal-overlay hidden">
+    <div class="modal-content" style="max-width:600px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:8px;">
+        <h2 style="margin:0; font-size:16px;">Prochains RDV par client</h2>
+        <button id="btnSyncRefresh" class="btn secondary" style="padding:4px 10px; font-size:14px; line-height:1;" title="Recalculer">↻</button>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">À partir de maintenant, sur 6 mois — <b>aperçu, rien n'est écrit</b>. Le nom nettoyé est en gras, le titre d'origine en dessous (vérifie l'extraction).</p>
+      <div id="syncResults" style="max-height:50vh; overflow-y:auto; font-size:13px;"></div>
+      <div style="display:flex; gap:8px; margin-top:12px;">
+        <button class="btn secondary" id="btnSyncCopy" style="flex:1;">📋 Copier le JSON</button>
+        <button class="btn" id="btnCloseSync">Fermer</button>
+      </div>
+    </div>
+  </div>
+
   <div id="trousModal" class="modal-overlay hidden">
     <div class="modal-content">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px;">
@@ -299,6 +315,7 @@ function ensureTokenClient(){
         document.getElementById("btnTrous").classList.remove("hidden");
         document.getElementById("btnBlocage").classList.remove("hidden");
         document.getElementById("btnSearch").classList.remove("hidden");
+        document.getElementById("btnSync").classList.remove("hidden");
         fetchAndRenderEvents();
       }
     },
@@ -823,6 +840,79 @@ document.getElementById("searchInput").oninput = () => renderSearch();
 document.getElementById("btnCloseSearch").onclick = () => document.getElementById("searchModal").classList.add("hidden");
 document.getElementById("btnRefreshSearch").onclick = () => { searchAll = null; openSearch(); };
 
+/* ===== Aperçu "prochain RDV par client" pour synchronisation VITACURA (dry-run : aucune écriture) ===== */
+const SYNC_HORIZON_DAYS = 180;
+let syncPayload = null;
+const replier = (s) => (s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\s+/g," ").trim();
+function cleanClientName(summary){
+  let s = (summary||"").trim();
+  s = s.replace(/^RDV\d*\s*/i, "");          // préfixe RDVx
+  s = s.replace(/\s+et\s+damien\b.*$/i, ""); // "… et Damien LEIGNEL …" (praticien)
+  s = s.replace(/\s*\(lieu.*$/i, "");         // "(lieu : …)"
+  s = s.replace(/\s*-\s*vit\b.*$/i, "");      // "- VIT…"
+  s = s.replace(/\s*\+.*$/, "");              // "+ café", etc.
+  return s.replace(/\s+/g, " ").trim();
+}
+async function syncScan(){
+  const now = new Date();
+  const timeMin = now.toISOString();
+  const timeMax = new Date(now.getTime() + SYNC_HORIZON_DAYS*86400000).toISOString();
+  const isRdv = (ev) => /^RDV\d*\b/i.test((ev.summary||"").trim());
+  const seen = new Map();
+  let pageToken = "";
+  do {
+    const url = `${CAL_API}/calendars/primary/events?timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime&maxResults=2500${pageToken?`&pageToken=${encodeURIComponent(pageToken)}`:""}`;
+    const res = await fetch(url, { headers:{ "Authorization":"Bearer "+accessToken } });
+    if(!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    (data.items||[]).forEach(ev => {
+      if(!ev.start || !ev.start.dateTime || !isRdv(ev)) return;
+      const start = new Date(ev.start.dateTime);
+      if(start <= now) return;
+      const nom = cleanClientName(ev.summary);
+      if(!nom) return;
+      const key = replier(nom);
+      if(seen.has(key)) return; // orderBy startTime -> le premier vu est le plus proche
+      seen.set(key, { nom, date: toLocalISO(start), heure: `${pad2(start.getHours())}:${pad2(start.getMinutes())}`, dateObj: start, raw: (ev.summary||"").trim() });
+    });
+    pageToken = data.nextPageToken || "";
+  } while(pageToken);
+  const list = [...seen.values()].sort((a,b)=>a.dateObj-b.dateObj);
+  syncPayload = { depuis: `${toLocalISO(now)}T${pad2(now.getHours())}:${pad2(now.getMinutes())}`, rendezvous: list.map(x=>({ nom:x.nom, date:x.date, heure:x.heure })) };
+  return list;
+}
+function renderSyncList(list){
+  const box = document.getElementById("syncResults");
+  if(!list.length){ box.innerHTML = '<div style="color:var(--muted); padding:16px; text-align:center;">Aucun rendez-vous à venir trouvé.</div>'; return; }
+  const cap = (s)=>s.charAt(0).toUpperCase()+s.slice(1);
+  box.innerHTML = `<div style="color:var(--muted); font-size:12px; margin:2px 0 8px;">${list.length} client${list.length>1?'s':''} · prochain RDV de chacun</div>` + list.map(x=>{
+    const d = x.dateObj;
+    const when = `${cap(frDayName(d))} ${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()} · ${d.getHours()}h${d.getMinutes()?pad2(d.getMinutes()):''}`;
+    return `<div style="padding:8px 4px; border-bottom:1px solid var(--stroke);">
+      <div style="display:flex; justify-content:space-between; gap:8px;"><span style="font-weight:600;">${sEsc(x.nom)}</span><span style="color:var(--primary); font-weight:600; white-space:nowrap;">${when}</span></div>
+      <div style="color:var(--muted); font-size:11px;">${sEsc(x.raw)}</div>
+    </div>`;
+  }).join('');
+}
+async function openSync(){
+  document.getElementById("syncModal").classList.remove("hidden");
+  const box = document.getElementById("syncResults");
+  if(!accessToken){ box.innerHTML = '<div style="color:var(--danger); padding:12px;">Non connecté.</div>'; return; }
+  box.innerHTML = '<div style="color:var(--muted); padding:16px; text-align:center;">Analyse du planning…</div>';
+  try { renderSyncList(await syncScan()); }
+  catch(err){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Erreur : ${err.message}</div>`; }
+}
+document.getElementById("btnSync").onclick = () => openSync();
+document.getElementById("btnCloseSync").onclick = () => document.getElementById("syncModal").classList.add("hidden");
+document.getElementById("btnSyncRefresh").onclick = () => openSync();
+document.getElementById("btnSyncCopy").onclick = async () => {
+  if(!syncPayload) return;
+  const txt = JSON.stringify(syncPayload, null, 2);
+  const btn = document.getElementById("btnSyncCopy");
+  try { await navigator.clipboard.writeText(txt); btn.textContent = "✓ Copié !"; setTimeout(()=>{ btn.textContent = "📋 Copier le JSON"; }, 1800); }
+  catch(e){ alert(txt); }
+};
+
 let trousOffset = 0;
 // Fenêtres de travail selon le jour : lundi démarre 10h30, samedi matin seul, dimanche fermé
 function workWindowsForDay(date){
@@ -1015,7 +1105,7 @@ function trySilentAuth(){
   else { let n = 0; const iv = setInterval(() => { if(window.google && google.accounts && google.accounts.oauth2){ clearInterval(iv); go(); } else if(++n > 50){ clearInterval(iv); } }, 100); }
 }
 const t = localStorage.getItem("gcal_access_token_v2"), e = localStorage.getItem("gcal_token_expiry_v2");
-if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); document.getElementById("btnBlocage").classList.remove("hidden"); document.getElementById("btnSearch").classList.remove("hidden"); fetchAndRenderEvents(); }
+if(t && e && Date.now() < parseInt(e)){ accessToken = t; document.getElementById("btnConnect").classList.add("hidden"); document.getElementById("btnDisconnect").classList.remove("hidden"); document.getElementById("btnWeekStats").classList.remove("hidden"); document.getElementById("btnMonthStats").classList.remove("hidden"); document.getElementById("btnTrous").classList.remove("hidden"); document.getElementById("btnBlocage").classList.remove("hidden"); document.getElementById("btnSearch").classList.remove("hidden"); document.getElementById("btnSync").classList.remove("hidden"); fetchAndRenderEvents(); }
 else { trySilentAuth(); window.addEventListener("pointerdown", function reArm(){ if(!accessToken){ lastSilent = 0; trySilentAuth(); } }, { once:true }); }
 // Au retour de l'appli au premier plan, on rafraîchit silencieusement le jeton s'il a expiré (utile pour une PWA laissée en arrière-plan)
 document.addEventListener("visibilitychange", () => {
