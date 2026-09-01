@@ -226,8 +226,11 @@
       <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">À partir de maintenant, sur 6 mois — <b>aperçu, rien n'est écrit</b>. Le nom nettoyé est en gras, le titre d'origine en dessous (vérifie l'extraction).</p>
       <div id="syncResults" style="max-height:50vh; overflow-y:auto; font-size:13px;"></div>
       <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn secondary" id="btnSyncCopy" style="flex:1;">📋 Copier le JSON</button>
-        <button class="btn" id="btnCloseSync">Fermer</button>
+        <button class="btn" id="btnSyncSql" style="flex:1;">🗄️ Copier le SQL (phpMyAdmin)</button>
+        <button class="btn secondary" id="btnCloseSync">Fermer</button>
+      </div>
+      <div style="text-align:center; margin-top:8px;">
+        <button id="btnSyncCopy" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Copier le JSON (pour l'endpoint)</button>
       </div>
     </div>
   </div>
@@ -909,8 +912,109 @@ document.getElementById("btnSyncCopy").onclick = async () => {
   if(!syncPayload) return;
   const txt = JSON.stringify(syncPayload, null, 2);
   const btn = document.getElementById("btnSyncCopy");
-  try { await navigator.clipboard.writeText(txt); btn.textContent = "✓ Copié !"; setTimeout(()=>{ btn.textContent = "📋 Copier le JSON"; }, 1800); }
+  try { await navigator.clipboard.writeText(txt); btn.textContent = "✓ JSON copié !"; setTimeout(()=>{ btn.textContent = "Copier le JSON (pour l'endpoint)"; }, 1800); }
   catch(e){ alert(txt); }
+};
+// Génère le SQL prêt à coller dans phpMyAdmin (reproduit outils/migration-02, auto-rempli)
+function buildSyncSql(payload){
+  const rdv = (payload && payload.rendezvous) || [];
+  const sqlEsc = (s) => (s||"").replace(/'/g, "''");
+  const rows = rdv.map(r => `  ('${sqlEsc(r.nom)}', '${r.date}', '${r.heure||''}')`).join(",\n");
+  const dep = (payload && payload.depuis) || "";
+  const depFmt = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(dep) ? `${dep.slice(8,10)}/${dep.slice(5,7)}/${dep.slice(0,4)} ${dep.slice(11)}` : dep;
+  return `-- ---------------------------------------------------------------------------
+-- VITACURA — inscription des prochains rendez-vous depuis le planning
+-- Planning du ${depFmt} — ${rdv.length} rendez-vous.
+-- (SQL généré automatiquement par l'application SMS.)
+--
+-- ⚠ AVANT DE LANCER QUOI QUE CE SOIT
+-- 1. Fais un export complet depuis l'accueil de l'application : ces requêtes
+--    écrivent directement dans les fiches, HORS du moteur d'annulation.
+-- 2. FERME l'application sur tous tes appareils, rouvre-la après l'étape 4 :
+--    un onglet resté ouvert réécrirait l'état d'AVANT par-dessus.
+--
+-- Lance les blocs dans l'ordre. Le bloc 2 ne modifie rien (aperçu du bloc 3).
+-- ---------------------------------------------------------------------------
+
+
+-- === 1. Le planning, dans une table de travail ==============================
+DROP TEMPORARY TABLE IF EXISTS planning;
+CREATE TEMPORARY TABLE planning (
+  nom    VARCHAR(160) NOT NULL,
+  d      DATE         NOT NULL,
+  h      VARCHAR(5)   NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO planning (nom, d, h) VALUES
+${rows};
+
+
+-- === 2. APERÇU — ne modifie rien ============================================
+-- Colonne « fiche » vide = nom non reconnu (orthographe, ou client absent).
+-- Comparaison insensible aux accents/casse, mais PAS à l'ordre des mots.
+SELECT
+  p.nom  AS planning,
+  p.d    AS date_rdv,
+  p.h    AS heure,
+  c.id   AS fiche,
+  CONCAT(
+    JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.prenom')), ' ',
+    JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.nom'))
+  )      AS nom_en_base,
+  JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.statut')) AS statut,
+  JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.prochaineSeance')) AS rdv_actuel
+FROM planning p
+LEFT JOIN clients c
+  ON CONCAT(
+       JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.prenom')), ' ',
+       JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.nom'))
+     ) COLLATE utf8mb4_unicode_ci = p.nom COLLATE utf8mb4_unicode_ci
+ORDER BY (c.id IS NULL) DESC, p.d;
+
+
+-- === 3. L'ÉCRITURE ==========================================================
+-- N'écrit que sur les fiches ACTIVES trouvées sans ambiguïté.
+UPDATE clients c
+JOIN planning p
+  ON CONCAT(
+       JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.prenom')), ' ',
+       JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.nom'))
+     ) COLLATE utf8mb4_unicode_ci = p.nom COLLATE utf8mb4_unicode_ci
+SET
+  c.contenu = JSON_SET(
+    c.contenu,
+    '$.prochaineSeance',      DATE_FORMAT(p.d, '%Y-%m-%d'),
+    '$.prochaineSeanceHeure', p.h
+  ),
+  c.maj_le = NOW()
+WHERE JSON_UNQUOTE(JSON_EXTRACT(c.contenu, '$.identite.statut')) = 'actif';
+
+
+-- === 4. REMETTRE LES EMPREINTES D'ACCORD ====================================
+-- La colonne "version" = empreinte du contenu. La laisser périmée ferait
+-- accepter en silence une écriture qui aurait dû être refusée.
+UPDATE clients SET version = MD5(contenu);
+
+
+-- === 5. VÉRIFIER ============================================================
+SELECT
+  CONCAT(
+    JSON_UNQUOTE(JSON_EXTRACT(contenu, '$.identite.prenom')), ' ',
+    JSON_UNQUOTE(JSON_EXTRACT(contenu, '$.identite.nom'))
+  )                                                             AS client,
+  JSON_UNQUOTE(JSON_EXTRACT(contenu, '$.prochaineSeance'))      AS rdv,
+  JSON_UNQUOTE(JSON_EXTRACT(contenu, '$.prochaineSeanceHeure')) AS heure
+FROM clients
+WHERE JSON_UNQUOTE(JSON_EXTRACT(contenu, '$.prochaineSeance')) >= DATE_FORMAT(NOW(), '%Y-%m-%d')
+ORDER BY rdv;
+`;
+}
+document.getElementById("btnSyncSql").onclick = async () => {
+  if(!syncPayload) return;
+  const sql = buildSyncSql(syncPayload);
+  const btn = document.getElementById("btnSyncSql");
+  try { await navigator.clipboard.writeText(sql); btn.textContent = "✓ SQL copié !"; setTimeout(()=>{ btn.textContent = "🗄️ Copier le SQL (phpMyAdmin)"; }, 1800); }
+  catch(e){ alert(sql); }
 };
 
 let trousOffset = 0;
