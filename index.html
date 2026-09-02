@@ -1028,42 +1028,49 @@ document.getElementById("btnSyncConfig").onclick = () => {
 };
 function renderSyncResult(data){
   const box = document.getElementById("syncResults");
-  const mis = data.mis || [], closes = data.closes || [], amb = data.ambigus || [], intr = data.introuvables || [];
-  let html = `<div style="padding:8px 4px; font-weight:700; color:var(--success);">✓ ${data.misAJour} mis à jour · ${data.inchanges} inchangé${data.inchanges > 1 ? 's' : ''}</div>`;
+  const mis = data.mis || [], closes = data.closes || [], amb = data.ambigus || [], intr = data.introuvables || [], sans = data.sansRdv || [];
+  // Résumé concis (on ne s'attarde pas sur les RDV déjà à jour)
+  let html = `<div style="padding:8px 4px; font-weight:700; color:var(--success);">✓ ${data.misAJour} mis à jour · ${data.inchanges} déjà à jour</div>`;
   if(mis.length){
-    html += `<div style="margin-top:2px; font-weight:600; font-size:12px; color:var(--muted);">Mis à jour :</div>` +
-      mis.map(m => `<div style="padding:2px 4px; font-size:12px;">${sEsc(m.nom)} <span style="color:var(--primary);">→ ${m.date}${m.heure ? ' ' + m.heure : ''}</span></div>`).join('');
+    html += `<div style="font-size:12px; color:var(--muted); padding:0 4px 4px;">Inscrits : ` +
+      mis.map(m => `${sEsc(m.nom)} (${m.date}${m.heure ? ' ' + m.heure : ''})`).join(' · ') + `</div>`;
   }
-  if(closes.length){
-    html += `<div style="margin-top:8px; font-weight:600; color:#b45309;">Fiches closes (rouvre-les dans VITACURA, puis relance) :</div>` +
-      closes.map(c => `<div style="padding:2px 4px; font-size:12px;">${sEsc(c.nom)}${c.fiche && c.fiche !== c.nom ? ` <span style="color:var(--muted);">(fiche : ${sEsc(c.fiche)})</span>` : ''}</div>`).join('');
-  }
-  if(amb.length){
-    html += `<div style="margin-top:8px; font-weight:600; color:#b45309;">Ambigus (plusieurs fiches) :</div>` +
-      amb.map(a => `<div style="padding:2px 4px; font-size:12px;">${sEsc(a.nom)} → ${(a.candidats||[]).map(sEsc).join(' / ')}</div>`).join('');
-  }
+  // À rapprocher : nom du planning non reconnu → fiche VITACURA sans RDV
   let aRapprocher = 0;
   if(intr.length){
-    html += `<div style="margin-top:8px; font-weight:600; color:var(--danger);">Non reconnus — rapproche si c'est la même personne :</div>`;
-    html += intr.map(it => {
+    const blocs = intr.map(it => {
       const sug = it.suggestions || [];
       if(!sug.length){
-        return `<div style="padding:4px 4px; font-size:12px;">${sEsc(it.nom)} <span style="color:var(--muted);">— aucune fiche proche</span></div>`;
+        return `<div style="padding:4px 4px; font-size:12px;">${sEsc(it.nom)} <span style="color:var(--muted);">— aucune fiche sans RDV proche</span></div>`;
       }
       aRapprocher++;
       const opts = `<option value="">— ne rien faire —</option>` +
-        sug.map(s => `<option value="${sEsc(s.id)}">${sEsc(s.nom)} (écart ${s.ecart})</option>`).join('');
+        sug.map(s => `<option value="${sEsc(s.id)}">${sEsc(s.nom)}${s.ecart != null ? ` (écart ${s.ecart})` : ''}</option>`).join('');
       return `<div style="padding:5px 4px; border-bottom:1px solid var(--stroke);">
         <div style="font-size:12px; font-weight:600; margin-bottom:3px;">${sEsc(it.nom)} <span style="color:var(--muted); font-weight:400;">→ ${it.date}${it.heure ? ' ' + it.heure : ''}</span></div>
         <select data-rap data-date="${it.date}" data-heure="${sEsc(it.heure || '')}" style="width:100%; font-size:12px;">${opts}</select>
       </div>`;
     }).join('');
+    html += `<div style="margin-top:8px; font-weight:700; color:var(--danger);">À rapprocher (${intr.length}) — planning ↔ fiche :</div>${blocs}`;
     if(aRapprocher){
-      html += `<div style="margin-top:10px;"><button class="btn" id="btnSyncResolve" style="width:100%;">Valider les rapprochements</button></div>`;
+      html += `<div style="margin-top:8px;"><button class="btn" id="btnSyncResolve" style="width:100%;">Valider les rapprochements</button></div>`;
     }
   }
-  if(!mis.length && !closes.length && !amb.length && !intr.length){
-    html += `<div style="color:var(--muted); font-size:12px; padding:4px;">Rien à signaler.</div>`;
+  // Fiches VITACURA encore sans prochain RDV (vue d'ensemble)
+  if(sans.length){
+    html += `<div style="margin-top:10px; font-weight:600; color:#b45309;">Fiches sans prochain RDV (${sans.length}) :</div>` +
+      `<div style="font-size:12px; padding:2px 4px;">` + sans.map(s => sEsc(s.nom)).join(' · ') + `</div>`;
+  }
+  if(closes.length){
+    html += `<div style="margin-top:10px; font-weight:600; color:#b45309;">Fiches closes (rouvre-les, puis relance) :</div>` +
+      `<div style="font-size:12px; padding:2px 4px;">` + closes.map(c => sEsc(c.nom)).join(' · ') + `</div>`;
+  }
+  if(amb.length){
+    html += `<div style="margin-top:10px; font-weight:600; color:#b45309;">Ambigus :</div>` +
+      amb.map(a => `<div style="padding:2px 4px; font-size:12px;">${sEsc(a.nom)} → ${(a.candidats||[]).map(sEsc).join(' / ')}</div>`).join('');
+  }
+  if(!mis.length && !closes.length && !amb.length && !intr.length && !sans.length){
+    html += `<div style="color:var(--muted); font-size:12px; padding:4px;">Tout est à jour. 👍</div>`;
   }
   box.innerHTML = html;
   const rb = document.getElementById("btnSyncResolve");
