@@ -1028,36 +1028,72 @@ document.getElementById("btnSyncConfig").onclick = () => {
 };
 function renderSyncResult(data){
   const box = document.getElementById("syncResults");
-  const amb = data.ambigus || [], intr = data.introuvables || [];
-  let html = `<div style="padding:10px 4px; font-weight:700; color:var(--success);">✓ ${data.misAJour} mis à jour · ${data.inchanges} inchangé${data.inchanges > 1 ? 's' : ''}</div>`;
+  const mis = data.mis || [], closes = data.closes || [], amb = data.ambigus || [], intr = data.introuvables || [];
+  let html = `<div style="padding:8px 4px; font-weight:700; color:var(--success);">✓ ${data.misAJour} mis à jour · ${data.inchanges} inchangé${data.inchanges > 1 ? 's' : ''}</div>`;
+  if(mis.length){
+    html += `<div style="margin-top:2px; font-weight:600; font-size:12px; color:var(--muted);">Mis à jour :</div>` +
+      mis.map(m => `<div style="padding:2px 4px; font-size:12px;">${sEsc(m.nom)} <span style="color:var(--primary);">→ ${m.date}${m.heure ? ' ' + m.heure : ''}</span></div>`).join('');
+  }
+  if(closes.length){
+    html += `<div style="margin-top:8px; font-weight:600; color:#b45309;">Fiches closes (rouvre-les dans VITACURA, puis relance) :</div>` +
+      closes.map(c => `<div style="padding:2px 4px; font-size:12px;">${sEsc(c.nom)}${c.fiche && c.fiche !== c.nom ? ` <span style="color:var(--muted);">(fiche : ${sEsc(c.fiche)})</span>` : ''}</div>`).join('');
+  }
   if(amb.length){
-    html += `<div style="margin-top:6px; font-weight:600; color:#b45309;">À traiter à la main (ambigus) :</div>` +
-      amb.map(a => `<div style="padding:3px 4px; font-size:12px;">${sEsc(a.nom)} → ${(a.candidats||[]).map(sEsc).join(' / ')}</div>`).join('');
+    html += `<div style="margin-top:8px; font-weight:600; color:#b45309;">Ambigus (plusieurs fiches) :</div>` +
+      amb.map(a => `<div style="padding:2px 4px; font-size:12px;">${sEsc(a.nom)} → ${(a.candidats||[]).map(sEsc).join(' / ')}</div>`).join('');
   }
+  let aRapprocher = 0;
   if(intr.length){
-    html += `<div style="margin-top:6px; font-weight:600; color:var(--danger);">Introuvables (nom non reconnu / fiche close) :</div>` +
-      intr.map(i => `<div style="padding:3px 4px; font-size:12px;">${sEsc(i.nom)}</div>`).join('');
+    html += `<div style="margin-top:8px; font-weight:600; color:var(--danger);">Non reconnus — rapproche si c'est la même personne :</div>`;
+    html += intr.map(it => {
+      const sug = it.suggestions || [];
+      if(!sug.length){
+        return `<div style="padding:4px 4px; font-size:12px;">${sEsc(it.nom)} <span style="color:var(--muted);">— aucune fiche proche</span></div>`;
+      }
+      aRapprocher++;
+      const opts = `<option value="">— ne rien faire —</option>` +
+        sug.map(s => `<option value="${sEsc(s.id)}">${sEsc(s.nom)} (écart ${s.ecart})</option>`).join('');
+      return `<div style="padding:5px 4px; border-bottom:1px solid var(--stroke);">
+        <div style="font-size:12px; font-weight:600; margin-bottom:3px;">${sEsc(it.nom)} <span style="color:var(--muted); font-weight:400;">→ ${it.date}${it.heure ? ' ' + it.heure : ''}</span></div>
+        <select data-rap data-date="${it.date}" data-heure="${sEsc(it.heure || '')}" style="width:100%; font-size:12px;">${opts}</select>
+      </div>`;
+    }).join('');
+    if(aRapprocher){
+      html += `<div style="margin-top:10px;"><button class="btn" id="btnSyncResolve" style="width:100%;">Valider les rapprochements</button></div>`;
+    }
   }
-  if(!amb.length && !intr.length){
-    html += `<div style="color:var(--muted); font-size:12px; padding:4px;">Tous les clients ont été reconnus. 👍</div>`;
+  if(!mis.length && !closes.length && !amb.length && !intr.length){
+    html += `<div style="color:var(--muted); font-size:12px; padding:4px;">Rien à signaler.</div>`;
   }
   box.innerHTML = html;
+  const rb = document.getElementById("btnSyncResolve");
+  if(rb) rb.onclick = () => syncResolve();
 }
-async function syncPush(){
-  if(!syncPayload || !syncPayload.rendezvous.length){ alert("Rien à envoyer — ouvre d'abord l'aperçu."); return; }
+async function syncPost(body){
   const token = (localStorage.getItem("vitacura_jeton") || VITACURA_JETON_DEFAUT).trim();
   const url = (localStorage.getItem("vitacura_endpoint") || VITACURA_URL_DEFAUT).trim();
-  const n = syncPayload.rendezvous.length;
-  if(!confirm(`Écrire le prochain RDV de ${n} client${n > 1 ? 's' : ''} dans VITACURA ?\n\n⚠️ Ferme d'abord VITACURA sur tes autres appareils.`)) return;
   const box = document.getElementById("syncResults");
   box.innerHTML = '<div style="padding:16px; text-align:center; color:var(--muted);">Envoi à VITACURA…</div>';
   try {
-    const res = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "X-Vitacura-Jeton": token }, body: JSON.stringify(syncPayload) });
-    if(res.status === 401){ localStorage.removeItem("vitacura_jeton"); box.innerHTML = '<div style="color:var(--danger); padding:12px;">Jeton refusé. Reclique « Envoyer » pour le ressaisir.</div>'; return; }
+    const res = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "X-Vitacura-Jeton": token }, body: JSON.stringify(body) });
+    if(res.status === 401){ localStorage.removeItem("vitacura_jeton"); box.innerHTML = '<div style="color:var(--danger); padding:12px;">Jeton refusé (vérifie « Jeton / URL »).</div>'; return; }
     let data = null; try { data = await res.json(); } catch(e){}
     if(!res.ok || !data || !data.ok){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Erreur ${res.status} : ${(data && data.erreur) || "réponse inattendue"}</div>`; return; }
     renderSyncResult(data);
   } catch(err){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Échec réseau : ${err.message}<br><span style="font-size:11px;">(Endpoint non déployé ou CORS ? Vérifie « Jeton / URL ».)</span></div>`; }
+}
+async function syncPush(){
+  if(!syncPayload || !syncPayload.rendezvous.length){ alert("Rien à envoyer — ouvre d'abord l'aperçu."); return; }
+  const n = syncPayload.rendezvous.length;
+  if(!confirm(`Écrire le prochain RDV de ${n} client${n > 1 ? 's' : ''} dans VITACURA ?\n\n⚠️ Ferme d'abord VITACURA sur tes autres appareils.`)) return;
+  await syncPost({ depuis: syncPayload.depuis, rendezvous: syncPayload.rendezvous });
+}
+async function syncResolve(){
+  const forcer = [];
+  document.querySelectorAll('#syncResults select[data-rap]').forEach(s => { if(s.value){ forcer.push({ id: s.value, date: s.dataset.date, heure: s.dataset.heure || "" }); } });
+  if(!forcer.length){ alert("Choisis au moins une fiche à rapprocher (ou ferme)."); return; }
+  if(!confirm(`Écrire le RDV sur ${forcer.length} fiche${forcer.length > 1 ? 's' : ''} rapprochée${forcer.length > 1 ? 's' : ''} ?`)) return;
+  await syncPost({ forcer });
 }
 document.getElementById("btnSyncPush").onclick = () => syncPush();
 
