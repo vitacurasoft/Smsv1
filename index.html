@@ -226,11 +226,13 @@
       <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">À partir de maintenant, sur 6 mois — <b>aperçu, rien n'est écrit</b>. Le nom nettoyé est en gras, le titre d'origine en dessous (vérifie l'extraction).</p>
       <div id="syncResults" style="max-height:50vh; overflow-y:auto; font-size:13px;"></div>
       <div style="display:flex; gap:8px; margin-top:12px;">
-        <button class="btn" id="btnSyncSql" style="flex:1;">🗄️ Copier le SQL (phpMyAdmin)</button>
+        <button class="btn" id="btnSyncPush" style="flex:1;">☁️ Envoyer à VITACURA</button>
         <button class="btn secondary" id="btnCloseSync">Fermer</button>
       </div>
-      <div style="text-align:center; margin-top:8px;">
-        <button id="btnSyncCopy" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Copier le JSON (pour l'endpoint)</button>
+      <div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap; margin-top:8px;">
+        <button id="btnSyncSql" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Copier le SQL</button>
+        <button id="btnSyncCopy" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Copier le JSON</button>
+        <button id="btnSyncConfig" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Jeton / URL</button>
       </div>
     </div>
   </div>
@@ -1013,9 +1015,50 @@ document.getElementById("btnSyncSql").onclick = async () => {
   if(!syncPayload) return;
   const sql = buildSyncSql(syncPayload);
   const btn = document.getElementById("btnSyncSql");
-  try { await navigator.clipboard.writeText(sql); btn.textContent = "✓ SQL copié !"; setTimeout(()=>{ btn.textContent = "🗄️ Copier le SQL (phpMyAdmin)"; }, 1800); }
+  try { await navigator.clipboard.writeText(sql); btn.textContent = "✓ SQL copié !"; setTimeout(()=>{ btn.textContent = "Copier le SQL"; }, 1800); }
   catch(e){ alert(sql); }
 };
+document.getElementById("btnSyncConfig").onclick = () => {
+  const url = prompt("URL de l'endpoint VITACURA :", localStorage.getItem("vitacura_endpoint") || "https://vitalliance.vitacura.fr/api/rendezvous");
+  if(url !== null) localStorage.setItem("vitacura_endpoint", url.trim());
+  const tok = prompt("Jeton VITACURA (le même secret que dans config.php) :", localStorage.getItem("vitacura_jeton") || "");
+  if(tok !== null) localStorage.setItem("vitacura_jeton", tok.trim());
+};
+function renderSyncResult(data){
+  const box = document.getElementById("syncResults");
+  const amb = data.ambigus || [], intr = data.introuvables || [];
+  let html = `<div style="padding:10px 4px; font-weight:700; color:var(--success);">✓ ${data.misAJour} mis à jour · ${data.inchanges} inchangé${data.inchanges > 1 ? 's' : ''}</div>`;
+  if(amb.length){
+    html += `<div style="margin-top:6px; font-weight:600; color:#b45309;">À traiter à la main (ambigus) :</div>` +
+      amb.map(a => `<div style="padding:3px 4px; font-size:12px;">${sEsc(a.nom)} → ${(a.candidats||[]).map(sEsc).join(' / ')}</div>`).join('');
+  }
+  if(intr.length){
+    html += `<div style="margin-top:6px; font-weight:600; color:var(--danger);">Introuvables (nom non reconnu / fiche close) :</div>` +
+      intr.map(i => `<div style="padding:3px 4px; font-size:12px;">${sEsc(i.nom)}</div>`).join('');
+  }
+  if(!amb.length && !intr.length){
+    html += `<div style="color:var(--muted); font-size:12px; padding:4px;">Tous les clients ont été reconnus. 👍</div>`;
+  }
+  box.innerHTML = html;
+}
+async function syncPush(){
+  if(!syncPayload || !syncPayload.rendezvous.length){ alert("Rien à envoyer — ouvre d'abord l'aperçu."); return; }
+  let token = (localStorage.getItem("vitacura_jeton") || "").trim();
+  if(!token){ token = (prompt("Jeton VITACURA (une seule fois) :") || "").trim(); if(!token) return; localStorage.setItem("vitacura_jeton", token); }
+  const url = (localStorage.getItem("vitacura_endpoint") || "https://vitalliance.vitacura.fr/api/rendezvous").trim();
+  const n = syncPayload.rendezvous.length;
+  if(!confirm(`Écrire le prochain RDV de ${n} client${n > 1 ? 's' : ''} dans VITACURA ?\n\n⚠️ Ferme d'abord VITACURA sur tes autres appareils.`)) return;
+  const box = document.getElementById("syncResults");
+  box.innerHTML = '<div style="padding:16px; text-align:center; color:var(--muted);">Envoi à VITACURA…</div>';
+  try {
+    const res = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "X-Vitacura-Jeton": token }, body: JSON.stringify(syncPayload) });
+    if(res.status === 401){ localStorage.removeItem("vitacura_jeton"); box.innerHTML = '<div style="color:var(--danger); padding:12px;">Jeton refusé. Reclique « Envoyer » pour le ressaisir.</div>'; return; }
+    let data = null; try { data = await res.json(); } catch(e){}
+    if(!res.ok || !data || !data.ok){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Erreur ${res.status} : ${(data && data.erreur) || "réponse inattendue"}</div>`; return; }
+    renderSyncResult(data);
+  } catch(err){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Échec réseau : ${err.message}<br><span style="font-size:11px;">(Endpoint non déployé ou CORS ? Vérifie « Jeton / URL ».)</span></div>`; }
+}
+document.getElementById("btnSyncPush").onclick = () => syncPush();
 
 let trousOffset = 0;
 // Fenêtres de travail selon le jour : lundi démarre 10h30, samedi matin seul, dimanche fermé
