@@ -1047,6 +1047,11 @@ function renderSyncResult(data){
     html += `<div style="font-size:12px; color:var(--success); padding:0 4px 4px;">${dry ? 'À réactiver' : 'Réactivées'} : ` +
       reactives.map(r => `${sEsc(r.nom)} (${r.date}${r.heure ? ' ' + r.heure : ''})`).join(' · ') + `</div>`;
   }
+  const renommes = data.renommes || [];
+  if(renommes.length){
+    html += `<div style="font-size:12px; color:var(--success); padding:0 4px 4px;">${dry ? 'Orthographe à corriger' : 'Orthographe corrigée'} : ` +
+      renommes.map(r => `${sEsc(r.ancien)} → ${sEsc(r.nom)}`).join(' · ') + `</div>`;
+  }
   // À rapprocher : nom du planning non reconnu → choisir la fiche (mémorisé)
   if(intr.length){
     const blocs = intr.map(it => {
@@ -1056,13 +1061,16 @@ function renderSyncResult(data){
       }
       const opts = `<option value="">— ne rien faire —</option>` +
         sug.map(s => `<option value="${sEsc(s.id)}">${sEsc(s.nom)}${s.ecart != null ? ` (écart ${s.ecart})` : ''}</option>`).join('');
-      return `<div style="padding:5px 4px; border-bottom:1px solid var(--stroke);">
+      return `<div class="rap-block" data-nom="${sEsc(it.nom)}" data-date="${it.date}" data-heure="${sEsc(it.heure || '')}" style="padding:5px 4px; border-bottom:1px solid var(--stroke);">
         <div style="font-size:12px; font-weight:600; margin-bottom:3px;">${sEsc(it.nom)} <span style="color:var(--muted); font-weight:400;">→ ${it.date}${it.heure ? ' ' + it.heure : ''}</span></div>
         <select data-rap data-key="${sEsc(replier(it.nom))}" style="width:100%; font-size:12px;">${opts}</select>
+        <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); margin-top:3px; cursor:pointer;">
+          <input type="checkbox" data-correct style="width:14px; height:14px;"> ✏️ corriger l'orthographe de la fiche → « ${sEsc(it.nom)} »
+        </label>
       </div>`;
     }).join('');
     html += `<div style="margin-top:8px; font-weight:700; color:var(--danger);">À rapprocher (${intr.length}) — choisis la fiche :</div>${blocs}`;
-    html += `<div style="font-size:11px; color:var(--muted); padding:4px;">Choisis les fiches, puis « Envoyer à VITACURA ». Les choix sont mémorisés (plus jamais reproposés).</div>`;
+    html += `<div style="font-size:11px; color:var(--muted); padding:4px;">Choisis les fiches, puis « Envoyer à VITACURA ». Les choix sont mémorisés (plus jamais reproposés). Coche « corriger l'orthographe » quand c'est la fiche qui a une coquille : son nom devient celui du planning.</div>`;
   }
   // Fiches VITACURA encore sans prochain RDV (vue d'ensemble)
   if(sans.length){
@@ -1109,16 +1117,6 @@ async function syncPost(body){
 // Mémoire des rapprochements : nom (replié) du planning -> identifiant de fiche VITACURA
 function syncRapproGet(){ try { return JSON.parse(localStorage.getItem("vitacura_rappro") || "{}"); } catch(e){ return {}; } }
 function syncRapproSet(d){ try { localStorage.setItem("vitacura_rappro", JSON.stringify(d)); } catch(e){} }
-// Sépare le planning : noms déjà rapprochés -> écriture directe (forcer) ; le reste -> par nom
-function syncSplit(){
-  const dict = syncRapproGet(), rendezvous = [], forcer = [];
-  (syncPayload.rendezvous || []).forEach(r => {
-    const id = dict[replier(r.nom)];
-    if(id) forcer.push({ id, date: r.date, heure: r.heure });
-    else rendezvous.push({ nom: r.nom, date: r.date, heure: r.heure });
-  });
-  return { rendezvous, forcer };
-}
 // Sécurité : ne lance l'aperçu (dry-run) que si l'endpoint le gère vraiment.
 // Test à vide (rendezvous:[]) : n'écrit RIEN quelle que soit la version de l'endpoint.
 let syncDryOk = false;
@@ -1139,10 +1137,29 @@ async function syncSend(dryrun){
     document.getElementById("syncResults").innerHTML = '<div style="color:var(--muted); padding:16px; text-align:center;">Aucun rendez-vous à venir.</div>';
     return;
   }
-  const s = syncSplit();
+  // Corrections d'orthographe cochées : on renomme la fiche (identité) au nom du planning.
+  // Ces noms sont retirés du rapprochement par nom pour éviter un doublon "introuvable".
+  const renommer = [], renommes = new Set();
+  document.querySelectorAll('#syncResults .rap-block').forEach(b => {
+    const sel = b.querySelector('select[data-rap]'), chk = b.querySelector('input[data-correct]');
+    if(sel && sel.value && chk && chk.checked){
+      const nom = (b.dataset.nom || '').trim(), mots = nom.split(/\s+/);
+      renommer.push({ id: sel.value, prenom: mots[0] || '', nom: mots.slice(1).join(' '), date: b.dataset.date, heure: b.dataset.heure || '' });
+      renommes.add(replier(nom));
+      const dict = syncRapproGet(); delete dict[replier(nom)]; syncRapproSet(dict); // le renommage suffit, pas de lien mémorisé
+    }
+  });
+  const dict = syncRapproGet(), rendezvous = [], forcer = [];
+  (syncPayload.rendezvous || []).forEach(r => {
+    const cle = replier(r.nom);
+    if(renommes.has(cle)) return;                 // géré par renommer
+    const id = dict[cle];
+    if(id) forcer.push({ id, date: r.date, heure: r.heure });
+    else rendezvous.push({ nom: r.nom, date: r.date, heure: r.heure });
+  });
   const reactiver = [];
   document.querySelectorAll('#syncResults input[data-react]:checked').forEach(cb => reactiver.push({ id: cb.dataset.id, date: cb.dataset.date, heure: cb.dataset.heure || "" }));
-  await syncPost({ dryrun: !!dryrun, depuis: syncPayload.depuis, rendezvous: s.rendezvous, forcer: s.forcer, reactiver });
+  await syncPost({ dryrun: !!dryrun, depuis: syncPayload.depuis, rendezvous, forcer, reactiver, renommer });
 }
 async function syncPush(){
   if(!syncPayload || !syncPayload.rendezvous.length){ alert("Rien à envoyer — ouvre d'abord l'aperçu."); return; }
