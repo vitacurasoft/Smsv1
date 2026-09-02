@@ -1042,6 +1042,11 @@ function renderSyncResult(data){
     html += `<div style="font-size:12px; color:var(--muted); padding:0 4px 4px;">${dry ? 'À inscrire' : 'Inscrits'} : ` +
       mis.map(m => `${sEsc(m.nom)} (${m.date}${m.heure ? ' ' + m.heure : ''})`).join(' · ') + `</div>`;
   }
+  const reactives = data.reactives || [];
+  if(reactives.length){
+    html += `<div style="font-size:12px; color:var(--success); padding:0 4px 4px;">${dry ? 'À réactiver' : 'Réactivées'} : ` +
+      reactives.map(r => `${sEsc(r.nom)} (${r.date}${r.heure ? ' ' + r.heure : ''})`).join(' · ') + `</div>`;
+  }
   // À rapprocher : nom du planning non reconnu → choisir la fiche (mémorisé)
   if(intr.length){
     const blocs = intr.map(it => {
@@ -1065,8 +1070,14 @@ function renderSyncResult(data){
       `<div style="font-size:12px; padding:2px 4px;">` + sans.map(s => sEsc(s.nom)).join(' · ') + `</div>`;
   }
   if(closes.length){
-    html += `<div style="margin-top:10px; font-weight:600; color:#b45309;">Fiches closes (rouvre-les, puis relance) :</div>` +
-      `<div style="font-size:12px; padding:2px 4px;">` + closes.map(c => sEsc(c.nom)).join(' · ') + `</div>`;
+    html += `<div style="margin-top:10px; font-weight:600; color:#b45309;">Fiches closes — coche pour réactiver + inscrire le RDV :</div>`;
+    html += closes.map(c => {
+      if(!c.id){ return `<div style="padding:3px 4px; font-size:12px;">${sEsc(c.nom)} <span style="color:var(--muted);">(à rouvrir à la main)</span></div>`; }
+      return `<label style="display:flex; align-items:center; gap:8px; padding:4px; font-size:12px; cursor:pointer;">
+        <input type="checkbox" data-react data-id="${sEsc(c.id)}" data-date="${c.date}" data-heure="${sEsc(c.heure || '')}" style="width:16px; height:16px;">
+        <span>${sEsc(c.nom)} <span style="color:var(--muted);">→ ${c.date}${c.heure ? ' ' + c.heure : ''}</span></span>
+      </label>`;
+    }).join('');
   }
   if(amb.length){
     html += `<div style="margin-top:10px; font-weight:600; color:#b45309;">Ambigus :</div>` +
@@ -1129,7 +1140,9 @@ async function syncSend(dryrun){
     return;
   }
   const s = syncSplit();
-  await syncPost({ dryrun: !!dryrun, depuis: syncPayload.depuis, rendezvous: s.rendezvous, forcer: s.forcer });
+  const reactiver = [];
+  document.querySelectorAll('#syncResults input[data-react]:checked').forEach(cb => reactiver.push({ id: cb.dataset.id, date: cb.dataset.date, heure: cb.dataset.heure || "" }));
+  await syncPost({ dryrun: !!dryrun, depuis: syncPayload.depuis, rendezvous: s.rendezvous, forcer: s.forcer, reactiver });
 }
 async function syncPush(){
   if(!syncPayload || !syncPayload.rendezvous.length){ alert("Rien à envoyer — ouvre d'abord l'aperçu."); return; }
