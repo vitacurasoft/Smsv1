@@ -906,8 +906,14 @@ async function openSync(){
   const box = document.getElementById("syncResults");
   if(!accessToken){ box.innerHTML = '<div style="color:var(--danger); padding:12px;">Non connecté.</div>'; return; }
   box.innerHTML = '<div style="color:var(--muted); padding:16px; text-align:center;">Analyse du planning…</div>';
-  try { renderSyncList(await syncScan()); }
-  catch(err){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Erreur : ${err.message}</div>`; }
+  try {
+    const list = await syncScan();
+    if(await syncCapable()){ await syncSend(true); }
+    else {
+      renderSyncList(list);
+      box.insertAdjacentHTML('afterbegin', '<div style="font-size:11px; color:#b45309; padding:4px 4px 8px;">Aperçu filtré indisponible : redéploie l\'endpoint VITACURA (mode aperçu) pour ne voir que ce qui reste à faire.</div>');
+    }
+  } catch(err){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Erreur : ${err.message}</div>`; }
 }
 document.getElementById("btnSync").onclick = () => openSync();
 document.getElementById("btnCloseSync").onclick = () => document.getElementById("syncModal").classList.add("hidden");
@@ -1029,32 +1035,29 @@ document.getElementById("btnSyncConfig").onclick = () => {
 function renderSyncResult(data){
   const box = document.getElementById("syncResults");
   const mis = data.mis || [], closes = data.closes || [], amb = data.ambigus || [], intr = data.introuvables || [], sans = data.sansRdv || [];
+  const dry = !!data.dryrun;
   // Résumé concis (on ne s'attarde pas sur les RDV déjà à jour)
-  let html = `<div style="padding:8px 4px; font-weight:700; color:var(--success);">✓ ${data.misAJour} mis à jour · ${data.inchanges} déjà à jour</div>`;
+  let html = `<div style="padding:8px 4px; font-weight:700; color:var(--success);">${dry ? '➜ ' + data.misAJour + ' à inscrire' : '✓ ' + data.misAJour + ' mis à jour'} · ${data.inchanges} déjà à jour</div>`;
   if(mis.length){
-    html += `<div style="font-size:12px; color:var(--muted); padding:0 4px 4px;">Inscrits : ` +
+    html += `<div style="font-size:12px; color:var(--muted); padding:0 4px 4px;">${dry ? 'À inscrire' : 'Inscrits'} : ` +
       mis.map(m => `${sEsc(m.nom)} (${m.date}${m.heure ? ' ' + m.heure : ''})`).join(' · ') + `</div>`;
   }
-  // À rapprocher : nom du planning non reconnu → fiche VITACURA sans RDV
-  let aRapprocher = 0;
+  // À rapprocher : nom du planning non reconnu → choisir la fiche (mémorisé)
   if(intr.length){
     const blocs = intr.map(it => {
       const sug = it.suggestions || [];
       if(!sug.length){
-        return `<div style="padding:4px 4px; font-size:12px;">${sEsc(it.nom)} <span style="color:var(--muted);">— aucune fiche proche trouvée</span></div>`;
+        return `<div style="padding:4px 4px; font-size:12px;">${sEsc(it.nom)} <span style="color:var(--muted);">— aucune fiche proche (à créer dans VITACURA)</span></div>`;
       }
-      aRapprocher++;
       const opts = `<option value="">— ne rien faire —</option>` +
         sug.map(s => `<option value="${sEsc(s.id)}">${sEsc(s.nom)}${s.ecart != null ? ` (écart ${s.ecart})` : ''}</option>`).join('');
       return `<div style="padding:5px 4px; border-bottom:1px solid var(--stroke);">
         <div style="font-size:12px; font-weight:600; margin-bottom:3px;">${sEsc(it.nom)} <span style="color:var(--muted); font-weight:400;">→ ${it.date}${it.heure ? ' ' + it.heure : ''}</span></div>
-        <select data-rap data-date="${it.date}" data-heure="${sEsc(it.heure || '')}" style="width:100%; font-size:12px;">${opts}</select>
+        <select data-rap data-key="${sEsc(replier(it.nom))}" style="width:100%; font-size:12px;">${opts}</select>
       </div>`;
     }).join('');
-    html += `<div style="margin-top:8px; font-weight:700; color:var(--danger);">À rapprocher (${intr.length}) — planning ↔ fiche :</div>${blocs}`;
-    if(aRapprocher){
-      html += `<div style="margin-top:8px;"><button class="btn" id="btnSyncResolve" style="width:100%;">Valider les rapprochements</button></div>`;
-    }
+    html += `<div style="margin-top:8px; font-weight:700; color:var(--danger);">À rapprocher (${intr.length}) — choisis la fiche :</div>${blocs}`;
+    html += `<div style="font-size:11px; color:var(--muted); padding:4px;">Choisis les fiches, puis « Envoyer à VITACURA ». Les choix sont mémorisés (plus jamais reproposés).</div>`;
   }
   // Fiches VITACURA encore sans prochain RDV (vue d'ensemble)
   if(sans.length){
@@ -1073,14 +1076,17 @@ function renderSyncResult(data){
     html += `<div style="color:var(--muted); font-size:12px; padding:4px;">Tout est à jour. 👍</div>`;
   }
   box.innerHTML = html;
-  const rb = document.getElementById("btnSyncResolve");
-  if(rb) rb.onclick = () => syncResolve();
+  box.querySelectorAll('select[data-rap]').forEach(s => s.onchange = () => {
+    const dict = syncRapproGet(), key = s.dataset.key;
+    if(s.value) dict[key] = s.value; else delete dict[key];
+    syncRapproSet(dict);
+  });
 }
 async function syncPost(body){
   const token = (localStorage.getItem("vitacura_jeton") || VITACURA_JETON_DEFAUT).trim();
   const url = (localStorage.getItem("vitacura_endpoint") || VITACURA_URL_DEFAUT).trim();
   const box = document.getElementById("syncResults");
-  box.innerHTML = '<div style="padding:16px; text-align:center; color:var(--muted);">Envoi à VITACURA…</div>';
+  box.innerHTML = `<div style="padding:16px; text-align:center; color:var(--muted);">${body.dryrun ? "Analyse VITACURA…" : "Écriture dans VITACURA…"}</div>`;
   try {
     const res = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "X-Vitacura-Jeton": token }, body: JSON.stringify(body) });
     if(res.status === 401){ localStorage.removeItem("vitacura_jeton"); box.innerHTML = '<div style="color:var(--danger); padding:12px;">Jeton refusé (vérifie « Jeton / URL »).</div>'; return; }
@@ -1089,18 +1095,46 @@ async function syncPost(body){
     renderSyncResult(data);
   } catch(err){ box.innerHTML = `<div style="color:var(--danger); padding:12px;">Échec réseau : ${err.message}<br><span style="font-size:11px;">(Endpoint non déployé ou CORS ? Vérifie « Jeton / URL ».)</span></div>`; }
 }
+// Mémoire des rapprochements : nom (replié) du planning -> identifiant de fiche VITACURA
+function syncRapproGet(){ try { return JSON.parse(localStorage.getItem("vitacura_rappro") || "{}"); } catch(e){ return {}; } }
+function syncRapproSet(d){ try { localStorage.setItem("vitacura_rappro", JSON.stringify(d)); } catch(e){} }
+// Sépare le planning : noms déjà rapprochés -> écriture directe (forcer) ; le reste -> par nom
+function syncSplit(){
+  const dict = syncRapproGet(), rendezvous = [], forcer = [];
+  (syncPayload.rendezvous || []).forEach(r => {
+    const id = dict[replier(r.nom)];
+    if(id) forcer.push({ id, date: r.date, heure: r.heure });
+    else rendezvous.push({ nom: r.nom, date: r.date, heure: r.heure });
+  });
+  return { rendezvous, forcer };
+}
+// Sécurité : ne lance l'aperçu (dry-run) que si l'endpoint le gère vraiment.
+// Test à vide (rendezvous:[]) : n'écrit RIEN quelle que soit la version de l'endpoint.
+let syncDryOk = false;
+async function syncCapable(){
+  if(syncDryOk) return true;
+  const token = (localStorage.getItem("vitacura_jeton") || VITACURA_JETON_DEFAUT).trim();
+  const url = (localStorage.getItem("vitacura_endpoint") || VITACURA_URL_DEFAUT).trim();
+  try {
+    const res = await fetch(url, { method:"POST", headers:{ "Content-Type":"application/json", "X-Vitacura-Jeton": token }, body: JSON.stringify({ dryrun:true, rendezvous:[] }) });
+    if(!res.ok) return false;
+    const d = await res.json();
+    if(d && d.dryrun === true){ syncDryOk = true; return true; }
+    return false;
+  } catch(e){ return false; }
+}
+async function syncSend(dryrun){
+  if(!syncPayload || !syncPayload.rendezvous.length){
+    document.getElementById("syncResults").innerHTML = '<div style="color:var(--muted); padding:16px; text-align:center;">Aucun rendez-vous à venir.</div>';
+    return;
+  }
+  const s = syncSplit();
+  await syncPost({ dryrun: !!dryrun, depuis: syncPayload.depuis, rendezvous: s.rendezvous, forcer: s.forcer });
+}
 async function syncPush(){
   if(!syncPayload || !syncPayload.rendezvous.length){ alert("Rien à envoyer — ouvre d'abord l'aperçu."); return; }
-  const n = syncPayload.rendezvous.length;
-  if(!confirm(`Écrire le prochain RDV de ${n} client${n > 1 ? 's' : ''} dans VITACURA ?\n\n⚠️ Ferme d'abord VITACURA sur tes autres appareils.`)) return;
-  await syncPost({ depuis: syncPayload.depuis, rendezvous: syncPayload.rendezvous });
-}
-async function syncResolve(){
-  const forcer = [];
-  document.querySelectorAll('#syncResults select[data-rap]').forEach(s => { if(s.value){ forcer.push({ id: s.value, date: s.dataset.date, heure: s.dataset.heure || "" }); } });
-  if(!forcer.length){ alert("Choisis au moins une fiche à rapprocher (ou ferme)."); return; }
-  if(!confirm(`Écrire le RDV sur ${forcer.length} fiche${forcer.length > 1 ? 's' : ''} rapprochée${forcer.length > 1 ? 's' : ''} ?`)) return;
-  await syncPost({ forcer });
+  if(!confirm("Écrire les prochains RDV dans VITACURA ?\n\n⚠️ Ferme d'abord VITACURA sur tes autres appareils.")) return;
+  await syncSend(false);
 }
 document.getElementById("btnSyncPush").onclick = () => syncPush();
 
