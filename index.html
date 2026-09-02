@@ -268,6 +268,8 @@
 const OAUTH_CLIENT_ID = "962693468865-fpumnvpt5517nfs21kobao8l2ejni1qk.apps.googleusercontent.com";
 const SCOPES = "https://www.googleapis.com/auth/calendar.events openid email profile";
 const CAL_API = "https://www.googleapis.com/calendar/v3";
+const VITACURA_URL_DEFAUT = "https://vitalliance.vitacura.fr/api/rendezvous";
+const VITACURA_JETON_DEFAUT = "ymiaqewvU2KZr7TsD0ebO4wcyYj7nFk7"; // jeton partagé avec config.php ; modifiable via « Jeton / URL »
 
 let tokenClient = null, accessToken = "", eventsCache = [], selectedIds = new Set(), sendQueue = [], sendIndex = 0;
 const SENT_KEY = "smsv1_sent_map_v1", SMS_TEMPLATE_KEY = "smsv1_template_v1";
@@ -1019,9 +1021,9 @@ document.getElementById("btnSyncSql").onclick = async () => {
   catch(e){ alert(sql); }
 };
 document.getElementById("btnSyncConfig").onclick = () => {
-  const url = prompt("URL de l'endpoint VITACURA :", localStorage.getItem("vitacura_endpoint") || "https://vitalliance.vitacura.fr/api/rendezvous");
+  const url = prompt("URL de l'endpoint VITACURA :", localStorage.getItem("vitacura_endpoint") || VITACURA_URL_DEFAUT);
   if(url !== null) localStorage.setItem("vitacura_endpoint", url.trim());
-  const tok = prompt("Jeton VITACURA (le même secret que dans config.php) :", localStorage.getItem("vitacura_jeton") || "");
+  const tok = prompt("Jeton VITACURA (le même secret que dans config.php) :", localStorage.getItem("vitacura_jeton") || VITACURA_JETON_DEFAUT);
   if(tok !== null) localStorage.setItem("vitacura_jeton", tok.trim());
 };
 function renderSyncResult(data){
@@ -1043,9 +1045,8 @@ function renderSyncResult(data){
 }
 async function syncPush(){
   if(!syncPayload || !syncPayload.rendezvous.length){ alert("Rien à envoyer — ouvre d'abord l'aperçu."); return; }
-  let token = (localStorage.getItem("vitacura_jeton") || "").trim();
-  if(!token){ token = (prompt("Jeton VITACURA (une seule fois) :") || "").trim(); if(!token) return; localStorage.setItem("vitacura_jeton", token); }
-  const url = (localStorage.getItem("vitacura_endpoint") || "https://vitalliance.vitacura.fr/api/rendezvous").trim();
+  const token = (localStorage.getItem("vitacura_jeton") || VITACURA_JETON_DEFAUT).trim();
+  const url = (localStorage.getItem("vitacura_endpoint") || VITACURA_URL_DEFAUT).trim();
   const n = syncPayload.rendezvous.length;
   if(!confirm(`Écrire le prochain RDV de ${n} client${n > 1 ? 's' : ''} dans VITACURA ?\n\n⚠️ Ferme d'abord VITACURA sur tes autres appareils.`)) return;
   const box = document.getElementById("syncResults");
