@@ -613,14 +613,15 @@ function blCellState(day, sl, valid, now){
   return kind;
 }
 function blShorten(str, max){ max = max || 24; str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>max ? str.slice(0,max-1)+"…" : str; }
-// Comptage par couleur de la vue affichée (colorId : 2=enfant, 3=adulte, 4=étudiant)
+// Comptage STRICT par couleur de la vue affichée (colorId : 2=enfant, 3=adulte, 4=étudiant).
+// Toute autre couleur (ex. jaune = RDV privé) suit sa couleur : pas de cumul, comptée nulle part.
 function blTally(counts, st, cId){
   if(st==="free") counts.libre++;
   else if(st==="blocage") counts.blocage++;
   else if(st==="busy"){
     if(cId==="2") counts.enfant++;
+    else if(cId==="3") counts.adulte++;
     else if(cId==="4") counts.etudiant++;
-    else counts.adulte++; // 3 ou toute autre couleur de RDV client
   }
 }
 function blSetLegend(counts){
