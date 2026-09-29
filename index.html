@@ -78,6 +78,8 @@
     .bl-legend b { font-weight:700; color:#334155; font-size:12px; font-variant-numeric:tabular-nums; min-width:11px; text-align:right; }
     .bl-legend span.bl-zero { opacity:.4; }
     .bl-dot { width:11px; height:11px; border-radius:3px; display:inline-block; }
+    .bl-swatch { width:44px; height:44px; border-radius:50%; border:2px solid rgba(0,0,0,0.08); cursor:pointer; padding:0; }
+    .bl-swatch:active { transform:scale(0.92); }
   </style>
 </head>
 <body>
@@ -194,7 +196,7 @@
         <span data-cat="blocage"><b>0</b><span class="bl-dot" style="background:#c7ccf2;"></span>Blocage</span>
         <span data-cat="libre"><b>0</b><span class="bl-dot" style="background:#f8fafc; border:1px dashed #c4b5fd;"></span>Libre</span>
       </div>
-      <div style="text-align:center; font-size:11px; color:var(--muted); margin-top:6px;">Touche une case <b>libre</b> pour la bloquer · touche un <b>blocage</b> pour le retirer.</div>
+      <div style="text-align:center; font-size:11px; color:var(--muted); margin-top:6px;">Touche une case <b>libre</b> pour la bloquer · touche un <b>blocage</b> pour le retirer · touche un <b>RDV coloré</b> pour changer sa couleur.</div>
       <div style="display:flex; gap:8px; margin-top:12px;">
         <button class="btn" id="blCreate" style="flex:1;" disabled>Bloquer (0)</button>
         <button class="btn secondary" id="blClose">Fermer</button>
@@ -202,6 +204,19 @@
       <div style="text-align:center; margin-top:8px;">
         <button id="blClear" style="background:none; border:none; color:var(--muted); text-decoration:underline; font-size:12px; cursor:pointer;">Effacer la sélection</button>
       </div>
+    </div>
+  </div>
+
+  <div id="blRecolorModal" class="modal-overlay hidden" style="z-index:110;">
+    <div class="modal-content" style="max-width:280px; text-align:center;">
+      <h2 style="margin:0 0 14px; font-size:15px;">Changer la couleur</h2>
+      <div style="display:flex; justify-content:center; gap:12px; margin-bottom:16px;">
+        <button class="bl-swatch" data-color="2" style="background:#a7e8c8;" title="Enfant"></button>
+        <button class="bl-swatch" data-color="4" style="background:#ffb3aa;" title="Étudiant"></button>
+        <button class="bl-swatch" data-color="3" style="background:#e0c2f4;" title="Adulte"></button>
+        <button class="bl-swatch" data-color="7" style="background:#a9dcf0;" title="Paon"></button>
+      </div>
+      <button class="btn secondary" id="blRecolorCancel" style="width:100%;">Annuler</button>
     </div>
   </div>
 
@@ -450,7 +465,8 @@ async function showWeekStats(){
     const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
     let other = 0;
     remainingRdvs.forEach(ev => {
-      if (counts.hasOwnProperty(ev.colorId)) counts[ev.colorId]++;
+      const cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
+      if (counts.hasOwnProperty(cid)) counts[cid]++;
       else other++;
     });
     const lines = categories.map(c => {
@@ -514,7 +530,11 @@ async function showMonthStats(){
     ];
     const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
     let other = 0;
-    remainingRdvs.forEach(ev => { if (counts.hasOwnProperty(ev.colorId)) counts[ev.colorId]++; else other++; });
+    remainingRdvs.forEach(ev => {
+      const cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
+      if (counts.hasOwnProperty(cid)) counts[cid]++;
+      else other++;
+    });
     // Trous libres d'ici la fin du mois (mêmes règles horaires que les dispos)
     const events = items.filter(ev => ev.start.dateTime && ev.end && ev.end.dateTime)
       .map(ev => ({ start: new Date(ev.start.dateTime), end: new Date(ev.end.dateTime) }));
@@ -613,14 +633,14 @@ function blCellState(day, sl, valid, now){
   return kind;
 }
 function blShorten(str, max){ max = max || 24; str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>max ? str.slice(0,max-1)+"…" : str; }
-// Comptage STRICT par couleur de la vue affichée (colorId : 2=enfant, 3=adulte, 4=étudiant).
+// Comptage STRICT par couleur de la vue affichée (colorId : 2=enfant, 3&7=adulte (raisin+paon), 4=étudiant).
 // Toute autre couleur (ex. jaune = RDV privé) suit sa couleur : pas de cumul, comptée nulle part.
 function blTally(counts, st, cId){
   if(st==="free") counts.libre++;
   else if(st==="blocage") counts.blocage++;
   else if(st==="busy"){
     if(cId==="2") counts.enfant++;
-    else if(cId==="3") counts.adulte++;
+    else if(cId==="3" || cId==="7") counts.adulte++;
     else if(cId==="4") counts.etudiant++;
   }
 }
@@ -632,7 +652,7 @@ function blSetLegend(counts){
     sp.classList.toggle("bl-zero", n===0);
   });
 }
-function blCell(state, sel, key, label, big, delId, colorId){
+function blCell(state, sel, key, label, big, evId, colorId){
   const base = "bl-cell" + (big ? " bl-cell-big" : "");
   if(sel) return `<div class="${base} bl-sel" data-key="${key}">${big ? "Blocage ✓" : "✓"}</div>`;
   let cls = "", style = "", attr = "";
@@ -642,7 +662,8 @@ function blCell(state, sel, key, label, big, delId, colorId){
   else { // busy ou blocage : couleur selon l'agenda (colorId)
     const c = BL_COLORS[state==="blocage" ? "1" : (colorId||"")] || BL_COLORS[""];
     style = `background:${c.bg}; color:${c.tx};`;
-    if(state==="blocage" && delId){ attr = `data-del="${delId}" title="Toucher pour retirer ce blocage"`; style += " cursor:pointer;"; }
+    if(state==="blocage" && evId){ attr = `data-del="${evId}" title="Toucher pour retirer ce blocage"`; style += " cursor:pointer;"; }
+    else if(state==="busy" && evId){ attr = `data-recolor="${evId}" title="Toucher pour changer la couleur"`; style += " cursor:pointer;"; }
   }
   const inner = (label && !big) ? `<span class="bl-mini">${label}</span>` : label;
   return `<div class="${base} ${cls}" style="${style}" ${attr}>${inner}</div>`;
@@ -707,10 +728,10 @@ function blDraw(){
       days.forEach((d,ci) => {
         const st = blCellState(d, sl, validByDay[ci][ri], now);
         const key = toLocalISO(d)+"_"+ri;
-        let del = null, lbl = "", cId = "";
-        if(st==="busy" || st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); lbl = ev?blShorten(ev.summary,20):""; cId = ev?ev.colorId:""; if(st==="blocage"&&ev) del = ev.id; }
+        let evId = null, lbl = "", cId = "";
+        if(st==="busy" || st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); lbl = ev?blShorten(ev.summary,20):""; cId = ev?ev.colorId:""; if(ev) evId = ev.id; }
         blTally(counts, st, cId);
-        html += blCell(st, blSel.has(key), key, lbl, false, del, cId);
+        html += blCell(st, blSel.has(key), key, lbl, false, evId, cId);
       });
     });
     html += `</div>`;
@@ -724,18 +745,23 @@ function blDraw(){
       html += `<div class="bl-time">${sl.label}</div>`;
       const st = blCellState(day, sl, valid[ri], now);
       const key = toLocalISO(day)+"_"+ri;
-      let label = "", del = null, cId = "";
-      if(st==="busy"||st==="blocage"){ const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); label = ev?blShorten(ev.summary, 80):""; cId = ev?ev.colorId:""; if(st==="blocage" && ev){ del = ev.id; label += "  ✕"; } }
+      let label = "", evId = null, cId = "";
+      if(st==="busy"||st==="blocage"){
+        const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s);
+        label = ev?blShorten(ev.summary, 80):""; cId = ev?ev.colorId:"";
+        if(ev){ evId = ev.id; label += st==="blocage" ? "  ✕" : "  🎨"; }
+      }
       else if(st==="free") label = "Libre";
       else if(st==="off") label = "—";
       blTally(counts, st, cId);
-      html += blCell(st, blSel.has(key), key, label, true, del, cId);
+      html += blCell(st, blSel.has(key), key, label, true, evId, cId);
     });
     html += `</div>`;
   }
   wrap.innerHTML = html;
   wrap.querySelectorAll("[data-key]").forEach(el => el.onclick = () => { const k=el.dataset.key; blSel.has(k)?blSel.delete(k):blSel.add(k); blDraw(); });
   wrap.querySelectorAll("[data-del]").forEach(el => el.onclick = () => blDelete(el.dataset.del));
+  wrap.querySelectorAll("[data-recolor]").forEach(el => el.onclick = () => blOpenRecolor(el.dataset.recolor));
   wrap.querySelectorAll("[data-daycol]").forEach(el => el.onclick = () => { const monday=blMonday(blRef); const d=new Date(monday); d.setDate(monday.getDate()+(+el.dataset.daycol)); blRef=d; blView="day"; blLoad(); });
   const n = blSel.size, btn = document.getElementById("blCreate");
   btn.textContent = `Bloquer (${n})`; btn.disabled = n===0;
@@ -754,6 +780,30 @@ async function blDelete(id){
     await blLoad();
   } catch(err){ alert("Erreur lors de la suppression : " + err.message); }
 }
+
+// Recoloriage d'une case déjà occupée (RDV) : palette des 4 couleurs habituelles
+let blRecolorId = null;
+function blOpenRecolor(id){ blRecolorId = id; document.getElementById("blRecolorModal").classList.remove("hidden"); }
+function blCloseRecolor(){ document.getElementById("blRecolorModal").classList.add("hidden"); blRecolorId = null; }
+async function blRecolor(colorId){
+  const id = blRecolorId;
+  blCloseRecolor();
+  if(!id || !accessToken) return;
+  try {
+    const res = await fetch(`${CAL_API}/calendars/primary/events/${id}`, {
+      method: "PATCH",
+      headers: { "Authorization": "Bearer " + accessToken, "Content-Type": "application/json" },
+      body: JSON.stringify({ colorId })
+    });
+    if(!res.ok){
+      if(res.status===401 || res.status===403){ alert("Autorisation d'écriture manquante.\nClique sur « Quitter » puis reconnecte-toi."); return; }
+      throw new Error("HTTP " + res.status);
+    }
+    await blLoad();
+  } catch(err){ alert("Erreur lors du changement de couleur : " + err.message); }
+}
+document.getElementById("blRecolorCancel").onclick = blCloseRecolor;
+document.querySelectorAll("#blRecolorModal .bl-swatch").forEach(sw => sw.onclick = () => blRecolor(sw.dataset.color));
 
 async function blCreate(){
   if(!blSel.size || !accessToken) return;
