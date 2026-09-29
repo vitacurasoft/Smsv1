@@ -52,7 +52,8 @@
     .bl-seg button.active { background:var(--primary); color:#fff; }
     .bl-nav { display:flex; align-items:center; gap:4px; margin-left:auto; }
     .bl-grid { display:grid; gap:4px; }
-    .bl-cell { min-height:46px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1.15; text-align:center; user-select:none; padding:2px; overflow:hidden; }
+    .bl-cell { position:relative; min-height:46px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1.15; text-align:center; user-select:none; padding:2px; overflow:hidden; }
+    .bl-recolorable::after { content:"🎨"; position:absolute; bottom:1px; right:2px; font-size:8px; line-height:1; opacity:.8; }
     .bl-cell-big { min-height:52px; justify-content:flex-start; text-align:left; padding:6px 10px; font-size:13px; }
     .bl-mini { font-size:9px; line-height:1.12; word-break:break-word; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; padding:1px 2px; }
     .bl-out-next { transform-origin:left center; animation: blFlipOut .22s ease-in forwards; }
@@ -663,7 +664,7 @@ function blCell(state, sel, key, label, big, evId, colorId){
     const c = BL_COLORS[state==="blocage" ? "1" : (colorId||"")] || BL_COLORS[""];
     style = `background:${c.bg}; color:${c.tx};`;
     if(state==="blocage" && evId){ attr = `data-del="${evId}" title="Toucher pour retirer ce blocage"`; style += " cursor:pointer;"; }
-    else if(state==="busy" && evId){ attr = `data-recolor="${evId}" title="Toucher pour changer la couleur"`; style += " cursor:pointer;"; }
+    else if(state==="busy" && evId){ cls += " bl-recolorable"; attr = `data-recolor="${evId}" title="Toucher pour changer la couleur"`; style += " cursor:pointer;"; }
   }
   const inner = (label && !big) ? `<span class="bl-mini">${label}</span>` : label;
   return `<div class="${base} ${cls}" style="${style}" ${attr}>${inner}</div>`;
@@ -749,7 +750,7 @@ function blDraw(){
       if(st==="busy"||st==="blocage"){
         const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s);
         label = ev?blShorten(ev.summary, 80):""; cId = ev?ev.colorId:"";
-        if(ev){ evId = ev.id; label += st==="blocage" ? "  ✕" : "  🎨"; }
+        if(ev){ evId = ev.id; if(st==="blocage") label += "  ✕"; }
       }
       else if(st==="free") label = "Libre";
       else if(st==="off") label = "—";
