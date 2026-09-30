@@ -466,7 +466,8 @@ async function showWeekStats(){
     const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
     let other = 0;
     remainingRdvs.forEach(ev => {
-      const cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
+      let cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
+      if(!cid) cid = "3"; // pas de couleur du tout -> adulte par défaut (70€)
       if (counts.hasOwnProperty(cid)) counts[cid]++;
       else other++;
     });
@@ -532,7 +533,8 @@ async function showMonthStats(){
     const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
     let other = 0;
     remainingRdvs.forEach(ev => {
-      const cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
+      let cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
+      if(!cid) cid = "3"; // pas de couleur du tout -> adulte par défaut (70€)
       if (counts.hasOwnProperty(cid)) counts[cid]++;
       else other++;
     });
@@ -635,7 +637,8 @@ function blCellState(day, sl, valid, now){
 }
 function blShorten(str, max){ max = max || 24; str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>max ? str.slice(0,max-1)+"…" : str; }
 // Comptage STRICT par couleur de la vue affichée (colorId : 2=enfant, 3&7=adulte (raisin+paon), 4=étudiant).
-// Toute autre couleur (ex. jaune = RDV privé) suit sa couleur : pas de cumul, comptée nulle part.
+// Pas de couleur du tout (RDV pas encore affecté) -> compté en adulte par défaut (70€).
+// Toute autre couleur explicite (ex. jaune = RDV privé) suit sa couleur : pas de cumul, comptée nulle part.
 function blTally(counts, st, cId){
   if(st==="free") counts.libre++;
   else if(st==="blocage") counts.blocage++;
@@ -643,6 +646,7 @@ function blTally(counts, st, cId){
     if(cId==="2") counts.enfant++;
     else if(cId==="3" || cId==="7") counts.adulte++;
     else if(cId==="4") counts.etudiant++;
+    else if(!cId) counts.adulte++; // pas de couleur du tout -> adulte par défaut
   }
 }
 function blSetLegend(counts){
