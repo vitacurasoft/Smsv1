@@ -506,17 +506,21 @@ document.getElementById("btnWeekStatsNext").onclick = () => { weekStatsOffset++;
 document.getElementById("btnWeekStatsPrev").onclick = () => { if (weekStatsOffset > 0) { weekStatsOffset--; showWeekStats(); } };
 document.getElementById("btnCloseWeekStats").onclick = () => document.getElementById("weekStatsModal").classList.add("hidden");
 
+let monthStatsOffset = 0;
 async function showMonthStats(){
   if(!accessToken) return;
   const now = new Date();
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, 0); // 1er du mois suivant, 00h
+  const monthRef = new Date(now.getFullYear(), now.getMonth() + monthStatsOffset, 1);
+  const monthStart = new Date(monthRef.getFullYear(), monthRef.getMonth(), 1, 0, 0, 0, 0);
+  const monthEnd = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, 1, 0, 0, 0, 0); // 1er du mois suivant, 00h
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  document.getElementById("monthStatsTitle").textContent = `${cap(frMonthName(now))} ${now.getFullYear()}`;
+  document.getElementById("monthStatsTitle").textContent = `${cap(frMonthName(monthRef))} ${monthRef.getFullYear()}`;
   const content = document.getElementById("monthStatsContent");
   content.innerHTML = "Chargement…";
   document.getElementById("monthStatsModal").classList.remove("hidden");
   try {
-    const startFetch = new Date(now); startFetch.setHours(0, 0, 0, 0);
+    // Mois courant : on part d'aujourd'hui (les jours passés ne comptent pas). Mois futur : tout le mois.
+    const startFetch = monthStatsOffset === 0 ? new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0) : monthStart;
     const url = `${CAL_API}/calendars/primary/events?timeMin=${startFetch.toISOString()}&timeMax=${monthEnd.toISOString()}&singleEvents=true&orderBy=startTime&maxResults=2500`;
     const res = await fetch(url, { headers: { "Authorization": "Bearer " + accessToken } });
     const data = await res.json();
@@ -569,6 +573,7 @@ async function showMonthStats(){
       ? `<div style="display:flex; justify-content:space-between; padding:5px 0; color:var(--muted); font-size:12px;"><span>Non catégorisé</span><span><b>${other}</b></span></div>`
       : '';
     const grandTotal = categories.reduce((s, c) => s + counts[c.id] * c.price, 0);
+    const subLabel = monthStatsOffset === 0 ? `D'ici la fin du mois (à partir de ${hhmm})` : `Sur tout le mois`;
     content.innerHTML = `
       <div style="display:flex; justify-content:center; gap:32px; margin:8px 0 4px;">
         <div style="text-align:center;">
@@ -580,20 +585,35 @@ async function showMonthStats(){
           <div style="font-size:12px; color:var(--muted); margin-top:3px;">trous libres</div>
         </div>
       </div>
-      <div style="text-align:center; color:var(--muted); margin-bottom:12px; font-size:12px;">D'ici la fin du mois (à partir de ${hhmm})</div>
+      <div style="text-align:center; color:var(--muted); margin-bottom:12px; font-size:12px;">${subLabel}</div>
       <div style="border-top:1px solid var(--stroke); padding-top:8px;">
         ${lines}
         ${otherLine}
         <div style="display:flex; justify-content:space-between; padding-top:8px; margin-top:6px; border-top:1px solid var(--stroke); font-weight:700; font-size:15px;">
           <span>Total</span><span style="color:var(--primary);">${grandTotal}€</span>
         </div>
-      </div>`;
+      </div>
+      <div style="text-align:center; font-size:11px; color:var(--muted); margin-top:10px;">${monthStatsOffset > 0 ? '‹ ' : ''}Glisse pour changer de mois ›</div>`;
   } catch(err) {
     content.innerHTML = `<div style="color:var(--danger);">Erreur : ${err.message}</div>`;
   }
 }
-document.getElementById("btnMonthStats").onclick = () => showMonthStats();
+document.getElementById("btnMonthStats").onclick = () => { monthStatsOffset = 0; showMonthStats(); };
 document.getElementById("btnCloseMonthStats").onclick = () => document.getElementById("monthStatsModal").classList.add("hidden");
+// Balayage (swipe) pour changer de mois, même logique que le menu Blocage : gauche = suivant, droite = précédent
+(function(){
+  const wrap = document.getElementById("monthStatsModal").querySelector(".modal-content");
+  let sx = 0, sy = 0, tracking = false;
+  wrap.addEventListener("touchstart", (e) => { const t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; tracking = true; }, { passive:true });
+  wrap.addEventListener("touchend", (e) => {
+    if(!tracking) return; tracking = false;
+    const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy;
+    if(Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4){
+      if(dx < 0){ monthStatsOffset++; showMonthStats(); }
+      else if(monthStatsOffset > 0){ monthStatsOffset--; showMonthStats(); }
+    }
+  }, { passive:true });
+})();
 
 /* ===== Blocage de créneaux (création d'événements "Blocage" lavande) ===== */
 const BL_SLOTS = [
