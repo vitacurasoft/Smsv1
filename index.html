@@ -194,6 +194,7 @@
         <span data-cat="enfant"><b>0</b><span class="bl-dot" style="background:#a7e8c8;"></span>Enfant</span>
         <span data-cat="etudiant"><b>0</b><span class="bl-dot" style="background:#ffb3aa;"></span>Étudiant</span>
         <span data-cat="adulte"><b>0</b><span class="bl-dot" style="background:#e0c2f4;"></span>Adulte</span>
+        <span data-cat="aconf"><b>0</b><span class="bl-dot" style="background:#aecbfa;"></span>RDV à conf.</span>
         <span data-cat="blocage"><b>0</b><span class="bl-dot" style="background:#c7ccf2;"></span>Blocage</span>
         <span data-cat="libre"><b>0</b><span class="bl-dot" style="background:#f8fafc; border:1px dashed #c4b5fd;"></span>Libre</span>
       </div>
@@ -461,13 +462,14 @@ async function showWeekStats(){
     const categories = [
       { id: "2", label: "Sauge (enfant)",      price: 50, color: "#7ae7bf" },
       { id: "4", label: "Flamant rose (étud.)", price: 60, color: "#ff887c" },
-      { id: "3", label: "Raisin (adulte)",     price: 70, color: "#dbadff" }
+      { id: "3", label: "Raisin (adulte)",     price: 70, color: "#dbadff" },
+      { id: "0", label: "RDV à confirmer",     price: 70, color: "#aecbfa" }
     ];
     const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
     let other = 0;
     remainingRdvs.forEach(ev => {
       let cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
-      if(!cid) cid = "3"; // pas de couleur du tout -> adulte par défaut (70€)
+      if(!cid) cid = "0"; // pas de couleur du tout -> "RDV à confirmer" (70€, distinct de l'adulte)
       if (counts.hasOwnProperty(cid)) counts[cid]++;
       else other++;
     });
@@ -528,13 +530,14 @@ async function showMonthStats(){
     const categories = [
       { id: "2", label: "Sauge (enfant)",      price: 50, color: "#7ae7bf" },
       { id: "4", label: "Flamant rose (étud.)", price: 60, color: "#ff887c" },
-      { id: "3", label: "Raisin (adulte)",     price: 70, color: "#dbadff" }
+      { id: "3", label: "Raisin (adulte)",     price: 70, color: "#dbadff" },
+      { id: "0", label: "RDV à confirmer",     price: 70, color: "#aecbfa" }
     ];
     const counts = Object.fromEntries(categories.map(c => [c.id, 0]));
     let other = 0;
     remainingRdvs.forEach(ev => {
       let cid = ev.colorId === "7" ? "3" : ev.colorId; // paon -> compté comme adulte (70€)
-      if(!cid) cid = "3"; // pas de couleur du tout -> adulte par défaut (70€)
+      if(!cid) cid = "0"; // pas de couleur du tout -> "RDV à confirmer" (70€, distinct de l'adulte)
       if (counts.hasOwnProperty(cid)) counts[cid]++;
       else other++;
     });
@@ -615,7 +618,8 @@ const BL_COLORS = {
   "9":  { bg:"#b7bdf0", tx:"#2a3399" },
   "10": { bg:"#8fd6ad", tx:"#0a5f31" },
   "11": { bg:"#f4a6a6", tx:"#a01818" },
-  "":   { bg:"#e2e8f0", tx:"#475569" }  // sans couleur définie
+  "0":  { bg:"#aecbfa", tx:"#1a56c4" }, // RDV sans couleur -> "à confirmer" (bleu, 70€)
+  "":   { bg:"#e2e8f0", tx:"#475569" }  // sans couleur définie (event non-RDV : neutre, jamais comptabilisé)
 };
 
 function blMonday(ref){ const d = new Date(ref); d.setHours(0,0,0,0); const wd = (d.getDay()+6)%7; d.setDate(d.getDate()-wd); return d; }
@@ -636,17 +640,18 @@ function blCellState(day, sl, valid, now){
   return kind;
 }
 function blShorten(str, max){ max = max || 24; str = (str||"").replace(/\s*\(lieu.*$/i,"").trim(); return str.length>max ? str.slice(0,max-1)+"…" : str; }
-// Comptage STRICT par couleur de la vue affichée (colorId : 2=enfant, 3&7=adulte (raisin+paon), 4=étudiant).
-// Pas de couleur du tout (RDV pas encore affecté) -> compté en adulte par défaut (70€).
+// Comptage STRICT par couleur, et seulement pour les vrais RDV (titre commençant par "RDV").
+// colorId : 2=enfant, 3&7=adulte (raisin+paon), 4=étudiant, pas de couleur -> "à confirmer" (70€).
 // Toute autre couleur explicite (ex. jaune = RDV privé) suit sa couleur : pas de cumul, comptée nulle part.
-function blTally(counts, st, cId){
+// Un événement qui n'est pas un RDV (perso, note, etc.) n'est jamais comptabilisé, quelle que soit sa couleur.
+function blTally(counts, st, cId, isRdvEv){
   if(st==="free") counts.libre++;
   else if(st==="blocage") counts.blocage++;
-  else if(st==="busy"){
+  else if(st==="busy" && isRdvEv){
     if(cId==="2") counts.enfant++;
     else if(cId==="3" || cId==="7") counts.adulte++;
     else if(cId==="4") counts.etudiant++;
-    else if(!cId) counts.adulte++; // pas de couleur du tout -> adulte par défaut
+    else if(!cId) counts.aconf++; // pas de couleur du tout -> "RDV à confirmer" (70€)
   }
 }
 function blSetLegend(counts){
@@ -657,7 +662,7 @@ function blSetLegend(counts){
     sp.classList.toggle("bl-zero", n===0);
   });
 }
-function blCell(state, sel, key, label, big, evId, colorId){
+function blCell(state, sel, key, label, big, evId, colorId, isRdvEv){
   const base = "bl-cell" + (big ? " bl-cell-big" : "");
   if(sel) return `<div class="${base} bl-sel" data-key="${key}">${big ? "Blocage ✓" : "✓"}</div>`;
   let cls = "", style = "", attr = "";
@@ -665,7 +670,9 @@ function blCell(state, sel, key, label, big, evId, colorId){
   else if(state==="past") cls = "bl-past";
   else if(state==="free"){ cls = "bl-free"; attr = `data-key="${key}"`; }
   else { // busy ou blocage : couleur selon l'agenda (colorId)
-    const c = BL_COLORS[state==="blocage" ? "1" : (colorId||"")] || BL_COLORS[""];
+    let effColorId = colorId;
+    if(state==="busy" && !colorId && isRdvEv) effColorId = "0"; // RDV sans couleur -> bleu "à confirmer"
+    const c = BL_COLORS[state==="blocage" ? "1" : (effColorId||"")] || BL_COLORS[""];
     style = `background:${c.bg}; color:${c.tx};`;
     if(state==="blocage" && evId){ attr = `data-del="${evId}" title="Toucher pour retirer ce blocage"`; style += " cursor:pointer;"; }
     else if(state==="busy" && evId){ cls += " bl-recolorable"; attr = `data-recolor="${evId}" title="Toucher pour changer la couleur"`; style += " cursor:pointer;"; }
@@ -718,7 +725,8 @@ function blDraw(){
   const fmtD = (d) => `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}`;
   document.getElementById("blTabWeek").classList.toggle("active", blView==="week");
   document.getElementById("blTabDay").classList.toggle("active", blView==="day");
-  const counts = { enfant:0, etudiant:0, adulte:0, blocage:0, libre:0 };
+  const counts = { enfant:0, etudiant:0, adulte:0, aconf:0, blocage:0, libre:0 };
+  const isRdvTitle = (s) => /^RDV\d*\b/i.test((s||"").trim());
   let html = "";
   if(blView === "week"){
     const monday = blMonday(blRef);
@@ -733,10 +741,10 @@ function blDraw(){
       days.forEach((d,ci) => {
         const st = blCellState(d, sl, validByDay[ci][ri], now);
         const key = toLocalISO(d)+"_"+ri;
-        let evId = null, lbl = "", cId = "";
-        if(st==="busy" || st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); lbl = ev?blShorten(ev.summary,20):""; cId = ev?ev.colorId:""; if(ev) evId = ev.id; }
-        blTally(counts, st, cId);
-        html += blCell(st, blSel.has(key), key, lbl, false, evId, cId);
+        let evId = null, lbl = "", cId = "", isRdvEv = false;
+        if(st==="busy" || st==="blocage"){ const [s,e]=blSlotDates(d,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s); lbl = ev?blShorten(ev.summary,20):""; cId = ev?ev.colorId:""; if(ev){ evId = ev.id; isRdvEv = isRdvTitle(ev.summary); } }
+        blTally(counts, st, cId, isRdvEv);
+        html += blCell(st, blSel.has(key), key, lbl, false, evId, cId, isRdvEv);
       });
     });
     html += `</div>`;
@@ -750,16 +758,16 @@ function blDraw(){
       html += `<div class="bl-time">${sl.label}</div>`;
       const st = blCellState(day, sl, valid[ri], now);
       const key = toLocalISO(day)+"_"+ri;
-      let label = "", evId = null, cId = "";
+      let label = "", evId = null, cId = "", isRdvEv = false;
       if(st==="busy"||st==="blocage"){
         const [s,e]=blSlotDates(day,sl); const ev=blEvents.find(x=>x.start<e&&x.end>s);
         label = ev?blShorten(ev.summary, 80):""; cId = ev?ev.colorId:"";
-        if(ev){ evId = ev.id; if(st==="blocage") label += "  ✕"; }
+        if(ev){ evId = ev.id; isRdvEv = isRdvTitle(ev.summary); if(st==="blocage") label += "  ✕"; }
       }
       else if(st==="free") label = "Libre";
       else if(st==="off") label = "—";
-      blTally(counts, st, cId);
-      html += blCell(st, blSel.has(key), key, label, true, evId, cId);
+      blTally(counts, st, cId, isRdvEv);
+      html += blCell(st, blSel.has(key), key, label, true, evId, cId, isRdvEv);
     });
     html += `</div>`;
   }
